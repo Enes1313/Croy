@@ -1,30 +1,22 @@
 #include <stdio.h>
-#include <dirent.h>
 #include <locale.h>
 #include <windows.h>
 #include "EA_Socket.h"
+#include "process.h"
 
 int port = 5005;
 
 static void commWithSystem(void);
 static int process(SOCKET sckt, char * al);
-static void processCMD(SOCKET sckt);
-static void processFileUpload(SOCKET sckt, char * path);
-static void processFileDownload(SOCKET sckt, char * path);
 
 int main()
 {
 	WSADATA _wsdata;
 
-	setlocale(LC_ALL, "Turkish");
+	//setlocale(LC_ALL, "Turkish");
 
-	while(1)
+	while (WSAStartup(MAKEWORD(2, 0), &_wsdata) != 0)
 	{
-		if (WSAStartup(MAKEWORD(2, 0), &_wsdata) == 0)
-		{
-			break;
-		}
-
 		Sleep(500);
 	}
 
@@ -102,7 +94,7 @@ int process(SOCKET sckt, char * al)
 {
 	if (strcmp(al, "cmd") == 0)
 	{
-		processCMD(sckt);
+		processRecvSendText(sckt);
 	}
 	else if (strncmp(al, "getFile ", 8) == 0)
 	{
@@ -119,64 +111,3 @@ int process(SOCKET sckt, char * al)
 
 	return 0;
 }
-
-static void processCMD(SOCKET sckt)
-{
-	char * buffer;
-	char input[300] = { 0 };
-
-	while(1)
-	{
-		buffer = recverText(sckt);
-
-		if (buffer == NULL)
-		{
-			CNF_INFO("çýkýþ 1\n");
-			break;
-		}
-
-		if(strcmp(buffer, "_Error_") == 0)
-		{
-			CNF_INFO("çýkýþ 2\n");
-			free(buffer);
-			break;
-		}
-
-		printf(buffer);
-		free(buffer);
-
-		inp:
-		gets(input);
-		fflush(stdout);
-		fflush(stdin);
-
-		if (strlen(input) == 0)
-		{
-			goto inp;
-		}
-
-		senderText(sckt, input);
-	}
-}
-
-static void processFileDownload(SOCKET sckt, char * path)
-{
-	char * fileName;
-
-	fileName = recverFile(sckt);
-	free(fileName);
-}
-
-static void processFileUpload(SOCKET sckt, char * path)
-{
-	senderFile(sckt, path);
-}
-/*
-void processDir(SOCKET sckt, char * dir)
-{
-	char * fileName;
-
-	fileName = recverFile(sckt);
-	puts(fileName);
-	free(fileName);
-}*/
