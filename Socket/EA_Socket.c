@@ -115,6 +115,7 @@ void senderFile(SOCKET s, char * path)
 
 	if((file = fopen(path, "rb")) == NULL)
 	{
+		senderText(s, "_Error_");
 		return;
 	}
 
@@ -164,7 +165,7 @@ char * recverFile(SOCKET s)
 	int n, total = 0;
 	char sendbuf[256] = {0}, buffer[5] = { 0 };
 
-	if ((path = recverText(s)) == NULL)
+	if ((path = recverText(s)) == NULL || strcmp("_Error_", path) == 0)
 	{
 		return NULL;
 	}
