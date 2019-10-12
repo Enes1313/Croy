@@ -8,7 +8,7 @@ int port = 5005;
 static void commWithSystem(void);
 static int process(int sckt, char * al);
 
-int main() // -municode
+int main()
 {
 	WSADATA _wsdata;
 
@@ -66,12 +66,13 @@ static void commWithSystem(void)
 				CNF_INFO("Send Command : ");
 
 				fgets(al, 300, stdin);
+				al[strlen(al) - 1] = 0;
 
 				senderText(istemci, al);
 
 				if ((de = process(istemci, al)) != 0)
 				{
-					CNF_INFO("Didn't Work!\n");
+					CNF_INFO("Again!\n");
 					break;
 				}
 			}
@@ -97,9 +98,10 @@ int process(int sckt, char * al)
 	{
 		processFileUpload(sckt, al + 9);
 	}
-	else if (strncmp(al, "update", 6) == 0)
+	else if (strncmp(al, "update ", 7) == 0)
 	{
-		// TODO: processUpdate(sckt);
+		processFileUpload(sckt, al + 7);
+		return 1;
 	}
 
 	return 0;
