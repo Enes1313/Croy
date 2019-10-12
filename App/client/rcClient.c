@@ -233,7 +233,7 @@ static void readHostAndPortFromFile(void)
 
 static int process(int sckt, char * al)
 {
-	if (strcmp(al, "cmd") == 0)
+	if (strncmp(al, "cmd", 3) == 0)
 	{
 		processCMD(sckt);
 	}
@@ -245,7 +245,7 @@ static int process(int sckt, char * al)
 	{
 		processFileDownload(sckt, al + 9);
 	}
-	else if (strcmp(al, "update") == 0)
+	else if (strncmp(al, "update", 6) == 0)
 	{
 		// TODO: processUpdate(sckt);
 	}

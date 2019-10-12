@@ -59,21 +59,17 @@ void processCMD(int sckt)
 	for(;;)
 	{
 		Sleep(500); //TODO: pipe tam dolana kadar beklenmeli
-
+		//TODO: pipe buf is bigger than 4101 again read, note: PeekNamedPipe
 		bSuccess = ReadFile(hChildStd_OUT_Rd, chBuf, 262144, &dwRead, NULL);
 
 		if(!bSuccess || dwRead == 0)
 		{
-			if (recv != NULL)
-			{
-				free(recv);
-			}
 			senderText(sckt, "_Error_");
+			WriteFile(hChildStd_IN_Wr, "exit\n", strlen("exit\n"), &dwWritten, NULL);
 			break;
 		}
 
 		chBuf[dwRead] = 0;
-
 		senderText(sckt, chBuf);
 		recv = recverText(sckt);
 
@@ -83,7 +79,6 @@ void processCMD(int sckt)
 			break;
 		}
 
-		recv[strlen(recv)] = '\n';
 		bSuccess = WriteFile(hChildStd_IN_Wr, recv, strlen(recv), &dwWritten, NULL);
 
 		if (!bSuccess)
@@ -132,7 +127,7 @@ void processIpPort(char * ipPort)
 void processRecvSendText(int sckt)
 {
 	char * buffer;
-	char input[300] = { 0 };
+	char input[300 + 1] = { 0 };
 
 	while(1)
 	{
@@ -152,13 +147,7 @@ void processRecvSendText(int sckt)
 		printf(buffer);
 		free(buffer);
 
-		inp:
-		scanf("%[^\n]%*c", input);
-
-		if (strlen(input) == 0)
-		{
-			goto inp;
-		}
+		fgets(input, 300, stdin);
 
 		senderText(sckt, input);
 	}

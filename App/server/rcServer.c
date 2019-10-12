@@ -65,7 +65,8 @@ static void commWithSystem(void)
 			{
 				CNF_INFO("Send Command : ");
 
-				scanf("%[^\n]%*c", al);
+				fgets(al, 300, stdin);
+
 				senderText(istemci, al);
 
 				if ((de = process(istemci, al)) != 0)
@@ -84,7 +85,7 @@ static void commWithSystem(void)
 
 int process(int sckt, char * al)
 {
-	if (strcmp(al, "cmd") == 0)
+	if (strncmp(al, "cmd", 3) == 0)
 	{
 		processRecvSendText(sckt);
 	}
@@ -96,7 +97,7 @@ int process(int sckt, char * al)
 	{
 		processFileUpload(sckt, al + 9);
 	}
-	else if (strcmp(al, "update") == 0)
+	else if (strncmp(al, "update", 6) == 0)
 	{
 		// TODO: processUpdate(sckt);
 	}
