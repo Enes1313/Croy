@@ -77,12 +77,13 @@ void processCMD(int sckt)
 		senderText(sckt, chBuf);
 		recv = recverText(sckt);
 
-		if (recv == NULL || strcmp(recv, "exit") == 0)
+		if (recv == NULL)
 		{
-			senderText(sckt, "_Error_");
+			WriteFile(hChildStd_IN_Wr, "exit\n", strlen("exit\n"), &dwWritten, NULL);
 			break;
 		}
 
+		recv[strlen(recv)] = '\n';
 		bSuccess = WriteFile(hChildStd_IN_Wr, recv, strlen(recv), &dwWritten, NULL);
 
 		if (!bSuccess)
@@ -92,11 +93,8 @@ void processCMD(int sckt)
 			break;
 		}
 
-		bSuccess = WriteFile(hChildStd_IN_Wr, "\n", 1, &dwWritten, NULL);
-
-		if (!bSuccess)
+		if (strcmp(recv, "exit\n") == 0)
 		{
-			free(recv);
 			senderText(sckt, "_Error_");
 			break;
 		}
