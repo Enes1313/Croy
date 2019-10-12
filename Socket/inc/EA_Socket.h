@@ -15,11 +15,11 @@
 #define CNF_INFO(...)
 #endif
 
-int Recver(SOCKET, char *, unsigned char);
-int Sender(SOCKET, const char *, unsigned char);
-char * recverText(SOCKET);
-void senderText(SOCKET, char *);
-char * recverFile(SOCKET);
-void senderFile(SOCKET, char *);
+int Recver(int, char *, unsigned char);
+int Sender(int, const char *, unsigned char);
+char * recverText(int);
+void senderText(int, char *);
+char * recverFile(int);
+void senderFile(int, char *);
 
 #endif

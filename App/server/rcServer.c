@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <locale.h>
 #include <windows.h>
 #include "EA_Socket.h"
 #include "process.h"
@@ -7,17 +6,15 @@
 int port = 5005;
 
 static void commWithSystem(void);
-static int process(SOCKET sckt, char * al);
+static int process(int sckt, char * al);
 
-int main()
+int main() // -municode
 {
 	WSADATA _wsdata;
 
-	//setlocale(LC_ALL, "Turkish");
-
 	while (WSAStartup(MAKEWORD(2, 0), &_wsdata) != 0)
 	{
-		Sleep(500);
+		Sleep(1000);
 	}
 
 	commWithSystem();
@@ -30,68 +27,62 @@ int main()
 static void commWithSystem(void)
 {
 	char al[1024] = {0};
-	int cnt, de, yes = 1;
-	SOCKET sckt, istemci;
+	int sckt, istemci;
 	struct sockaddr_in veriler, verileri;
+	int cnt = sizeof(verileri), de, yes = 1;
 
 	while (1)
 	{
 		sckt = socket(AF_INET, SOCK_STREAM, 0);
-		setsockopt(sckt, SOL_SOCKET, SO_REUSEADDR, (char * )&yes, sizeof(int));
 
-		veriler.sin_family = AF_INET;
-		veriler.sin_port = htons(port);
-		veriler.sin_addr.s_addr = INADDR_ANY;
-		memset(veriler.sin_zero, 0, 8);
-
-		bind(sckt, (struct  sockaddr *)&veriler, sizeof(struct  sockaddr));
-		listen(sckt, 10);
-
-		if (sckt != INVALID_SOCKET && sckt != SOCKET_ERROR)
+		if (sckt != SOCKET_ERROR)
 		{
+			setsockopt(sckt, SOL_SOCKET, SO_REUSEADDR, (char * )&yes, sizeof(int));
+
+			veriler.sin_family = AF_INET;
+			veriler.sin_port = htons(port);
+			veriler.sin_addr.s_addr = INADDR_ANY;
+			memset(veriler.sin_zero, 0, 8);
+
+			bind(sckt, (struct  sockaddr *)&veriler, sizeof(struct  sockaddr));
+			listen(sckt, 10);
+
 			while (1)
 			{
-				CNF_INFO("Baðlantý bekleniyor\n");
-				cnt = sizeof(verileri);
-				istemci = accept(sckt, (struct  sockaddr *)&verileri, &cnt);
+				CNF_INFO("Waiting ...\n");
 
-				if(istemci != INVALID_SOCKET && istemci != SOCKET_ERROR)
+				if((istemci = accept(sckt, (struct  sockaddr *)&verileri, &cnt)) != SOCKET_ERROR)
 				{
 					break;
 				}
 
-				Sleep(500);
+				Sleep(1000);
 			}
 
-			CNF_INFO("Ýstemci baðlandý\n");
+			CNF_INFO("Connected!\n");
 
 			while(1)
 			{
-				CNF_INFO("Komut gir : ");
+				CNF_INFO("Send Command : ");
 
-				gets(al);
-				fflush(stdout);
-				fflush(stdin);
-
+				scanf("%[^\n]%*c", al);
 				senderText(istemci, al);
 
 				if ((de = process(istemci, al)) != 0)
 				{
-					CNF_INFO("Ýþlenemedi!\n");
+					CNF_INFO("Didn't Work!\n");
 					break;
 				}
 			}
 
 			closesocket(sckt);
-			sckt = INVALID_SOCKET;
-			fflush(stdout);
 		}
 
 		Sleep(1000);
 	}
 }
 
-int process(SOCKET sckt, char * al)
+int process(int sckt, char * al)
 {
 	if (strcmp(al, "cmd") == 0)
 	{

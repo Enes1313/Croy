@@ -2,7 +2,7 @@
 #include "EA_Socket.h"
 #include "process.h"
 
-void processCMD(SOCKET sckt)
+void processCMD(int sckt)
 {
 	char * recv = NULL;
 	CHAR chBuf[262144 + 1];
@@ -108,17 +108,14 @@ void processCMD(SOCKET sckt)
 	CloseHandle(hChildStd_OUT_Rd);
 }
 
-void processFileUpload(SOCKET sckt, char * path)
+void processFileUpload(int sckt, char * path)
 {
 	senderFile(sckt, path);
 }
 
-void processFileDownload(SOCKET sckt, char * path)
+void processFileDownload(int sckt, char * path)
 {
-	char * fileName;
-
-	fileName = recverFile(sckt);
-	free(fileName);
+	free(recverFile(sckt));
 }
 
 void processIpPort(char * ipPort)
@@ -134,7 +131,7 @@ void processIpPort(char * ipPort)
 	}
 }
 
-void processRecvSendText(SOCKET sckt)
+void processRecvSendText(int sckt)
 {
 	char * buffer;
 	char input[300] = { 0 };
@@ -158,9 +155,7 @@ void processRecvSendText(SOCKET sckt)
 		free(buffer);
 
 		inp:
-		gets(input);
-		fflush(stdout);
-		fflush(stdin);
+		scanf("%[^\n]%*c", input);
 
 		if (strlen(input) == 0)
 		{

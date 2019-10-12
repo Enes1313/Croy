@@ -2,7 +2,7 @@
 #include <windows.h>
 #include "EA_Socket.h"
 
-int Recver(SOCKET s, char * buf, unsigned char max_len)
+int Recver(int s, char * buf, unsigned char max_len)
 {
 	int de;
 	unsigned char fe = 0, len;
@@ -29,7 +29,7 @@ int Recver(SOCKET s, char * buf, unsigned char max_len)
 	return de;
 }
 
-int Sender(SOCKET s, const char * buf, unsigned char len)
+int Sender(int s, const char * buf, unsigned char len)
 {
 	int de;
 	unsigned char fe = 0;
@@ -51,7 +51,7 @@ int Sender(SOCKET s, const char * buf, unsigned char len)
 	return de;
 }
 
-char * recverText(SOCKET s)
+char * recverText(int s)
 {
 	char * text;
 	char buffer[3] = { 0 };
@@ -82,7 +82,7 @@ char * recverText(SOCKET s)
 	return text;
 }
 
-void senderText(SOCKET s, char * text)
+void senderText(int s, char * text)
 {
 	char buffer[3] = { 0 };
 	unsigned short n = 0, total = 0, l = 0;
@@ -107,7 +107,7 @@ void senderText(SOCKET s, char * text)
 	}
 }
 
-void senderFile(SOCKET s, char * path)
+void senderFile(int s, char * path)
 {
 	FILE * file;
 	int n, total = 0, l = 0;
@@ -158,7 +158,7 @@ void senderFile(SOCKET s, char * path)
 	fclose(file);
 }
 
-char * recverFile(SOCKET s)
+char * recverFile(int s)
 {
 	FILE * file;
 	char * path;
