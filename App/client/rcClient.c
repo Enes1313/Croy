@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
-#include <Lmcons.h>
 #include "EA_Socket.h"
 #include "EA_Process.h"
 
