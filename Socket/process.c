@@ -75,6 +75,7 @@ void processCMD(int sckt)
 
 		if (recv == NULL)
 		{
+			senderText(sckt, "_Error_");
 			WriteFile(hChildStd_IN_Wr, "exit\n", strlen("exit\n"), &dwWritten, NULL);
 			break;
 		}
