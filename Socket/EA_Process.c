@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "EA_Socket.h"
-#include "process.h"
+#include <EA_Process.h>
 
 void processCMD(int sckt)
 {
@@ -110,19 +110,6 @@ void processFileUpload(int sckt, char * path)
 void processFileDownload(int sckt, char * path)
 {
 	free(recverFile(sckt));
-}
-
-void processIpPort(char * ipPort)
-{
-	FILE * fIpPort;
-
-	fIpPort = fopen("dt", "w");
-
-	if (fIpPort != NULL)
-	{
-		fprintf(fIpPort, ipPort);
-		fclose(fIpPort);
-	}
 }
 
 void processRecvSendText(int sckt)

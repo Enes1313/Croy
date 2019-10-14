@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <windows.h>
 #include "EA_Socket.h"
-#include "process.h"
+#include "EA_Process.h"
 
 int port = 5005;
 
