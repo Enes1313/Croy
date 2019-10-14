@@ -5,7 +5,7 @@
 void processCMD(int sckt)
 {
 	char * recv = NULL;
-	CHAR chBuf[262144 + 1];
+	CHAR chBuf[4500 + 1];
 	DWORD dwRead, dwWritten;
 	SECURITY_ATTRIBUTES saAttr;
 	HANDLE hChildStd_IN_Rd = NULL, hChildStd_IN_Wr = NULL, hChildStd_OUT_Rd = NULL, hChildStd_OUT_Wr = NULL;
@@ -60,7 +60,7 @@ void processCMD(int sckt)
 	{
 		Sleep(500); //TODO: pipe tam dolana kadar beklenmeli
 		//TODO: pipe buf is bigger than 4101 again read, note: PeekNamedPipe
-		bSuccess = ReadFile(hChildStd_OUT_Rd, chBuf, 262144, &dwRead, NULL);
+		bSuccess = ReadFile(hChildStd_OUT_Rd, chBuf, 4500, &dwRead, NULL);
 
 		if(!bSuccess || dwRead == 0)
 		{

