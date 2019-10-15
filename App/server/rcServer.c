@@ -1,12 +1,12 @@
 #include <stdio.h>
 #include <windows.h>
 #include "EA_Socket.h"
-#include "EA_Process.h"
 
 int port = 5005;
 
 static void commWithSystem(void);
 static int process(int sckt, char * al);
+static void recvSendText(int sckt);
 
 int main()
 {
@@ -88,21 +88,50 @@ int process(int sckt, char * al)
 {
 	if (strncmp(al, "cmd", 3) == 0)
 	{
-		processRecvSendText(sckt);
+		recvSendText(sckt);
 	}
 	else if (strncmp(al, "getFile ", 8) == 0)
 	{
-		processFileDownload(sckt, al + 8);
+		free(recverFile(sckt));
 	}
 	else if (strncmp(al, "sendFile ", 9) == 0)
 	{
-		processFileUpload(sckt, al + 9);
+		senderFile(sckt, al + 9);
 	}
 	else if (strncmp(al, "update ", 7) == 0)
 	{
-		processFileUpload(sckt, al + 7);
+		senderFile(sckt, al + 7);
 		return 1;
 	}
 
 	return 0;
+}
+
+static void recvSendText(int sckt)
+{
+	char * buffer;
+	char input[300 + 1] = { 0 };
+
+	while(1)
+	{
+		buffer = recverText(sckt);
+
+		if (buffer == NULL)
+		{
+			break;
+		}
+
+		if(strcmp(buffer, "_Error_") == 0)
+		{
+			free(buffer);
+			break;
+		}
+
+		printf(buffer);
+		free(buffer);
+
+		fgets(input, 300, stdin);
+
+		senderText(sckt, input);
+	}
 }

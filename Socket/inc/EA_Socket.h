@@ -3,8 +3,6 @@
 
 #define CNF_DEBUG	1
 
-#include <windows.h>
-
 #if CNF_DEBUG
 #include <stdio.h>
 
