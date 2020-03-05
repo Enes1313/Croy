@@ -10,7 +10,7 @@ int Recver(int s, char * buf, unsigned char max_len)
 
 	de = recv(s, (char *) &len, 1, 0);
 
-	if(de == -1 || de <= 0)
+	if(de == -1)
 		return de;
 
 	if (max_len < len)
@@ -22,7 +22,7 @@ int Recver(int s, char * buf, unsigned char max_len)
 	{
 		de = recv(s, buf + fe, len - fe, 0);
 
-		if(de == -1 || de == 0)
+		if(de == -1)
 			return de;
 		fe = de + fe;
 	}
@@ -37,14 +37,14 @@ int Sender(int s, const char * buf, unsigned char len)
 
 	de = send(s, (char *) &len, 1, 0);
 
-	if(de == -1 || de <= 0)
+	if(de == -1)
 		return de;
 
 	while(len > fe)
 	{
 		de = send(s, buf + fe, len - fe, 0);
 
-		if(de == -1 || de == 0)
+		if(de == -1)
 			return de;
 		fe = de + fe;
 	}
