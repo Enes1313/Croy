@@ -152,7 +152,6 @@ static void commWithSystems(void)
 		{
 			if ((selectedClient != newClient) || c)
 			{
-				puts("bbbb");
 				FD_CLR(newClient, &sockets);
 				closesocket(newClient);
 			}
