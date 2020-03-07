@@ -6,10 +6,12 @@
 int Recver(int s, char * buf, unsigned char max_len)
 {
 	int de;
+	int again = 3;
 	unsigned char fe = 0, len;
 
 	do{
 		de = recv(s, (char *) &len, 1, 0);
+		if (!de && (--again == 0)) return 0;
 	} while(!de);
 
 	if(de == -1)
@@ -35,10 +37,12 @@ int Recver(int s, char * buf, unsigned char max_len)
 int Sender(int s, const char * buf, unsigned char len)
 {
 	int de;
+	int again = 3;
 	unsigned char fe = 0;
 
 	do{
 		de = send(s, (char *) &len, 1, 0);
+		if (!de && (--again == 0)) return 0;
 	} while(!de);
 
 	if(de == -1)
