@@ -8,7 +8,9 @@ int Recver(int s, char * buf, unsigned char max_len)
 	int de;
 	unsigned char fe = 0, len;
 
-	de = recv(s, (char *) &len, 1, 0);
+	do{
+		de = recv(s, (char *) &len, 1, 0);
+	} while(!de);
 
 	if(de == -1)
 		return de;
@@ -27,7 +29,7 @@ int Recver(int s, char * buf, unsigned char max_len)
 		fe = de + fe;
 	}
 
-	return de;
+	return fe;
 }
 
 int Sender(int s, const char * buf, unsigned char len)
@@ -35,7 +37,9 @@ int Sender(int s, const char * buf, unsigned char len)
 	int de;
 	unsigned char fe = 0;
 
-	de = send(s, (char *) &len, 1, 0);
+	do{
+		de = send(s, (char *) &len, 1, 0);
+	} while(!de);
 
 	if(de == -1)
 		return de;
@@ -49,7 +53,7 @@ int Sender(int s, const char * buf, unsigned char len)
 		fe = de + fe;
 	}
 
-	return de;
+	return fe;
 }
 
 char * recverText(int s)

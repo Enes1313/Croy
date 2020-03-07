@@ -74,7 +74,6 @@ void * threadHI(void * param)
 
 			if (process(selectedClient, al))
 			{
-				puts("eeeee");
 				closesocket(selectedClient);
 				FD_CLR(selectedClient, &sockets);
 			}
