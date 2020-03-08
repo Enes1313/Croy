@@ -11,7 +11,7 @@ static int process(int sckt, char * al);
 static void recvSendText(int sckt);
 
 int c = 1;
-FD_SET sockets;
+FD_SET sockets, temp;
 SOCKET selectedClient = -1;
 
 int main()
@@ -39,14 +39,14 @@ void * threadHI(void * param)
 	char * al = (char *) param;
 	struct sockaddr_in clientInfos;
 
-	x = sizeof(struct  sockaddr);
-
 	do {
 		Sleep(1000);
 		c = 1;
 		selectedClient = -1;
 		for (var = 0; var < sockets.fd_count; ++var)
 		{
+			x = sizeof(struct  sockaddr);
+			memset(&clientInfos, 0, sizeof(struct sockaddr_in));
 			getpeername(sockets.fd_array[var], (struct  sockaddr *)&clientInfos, &x);
 			printf("Client Socket : %u, Client IP %s\n", (unsigned int) sockets.fd_array[var], inet_ntoa(clientInfos.sin_addr));
 		}
@@ -75,7 +75,7 @@ void * threadHI(void * param)
 			if (process(selectedClient, al))
 			{
 				closesocket(selectedClient);
-				FD_CLR(selectedClient, &sockets);
+				FD_CLR(selectedClient, &temp);
 			}
 			system("cls");
 		}
@@ -86,6 +86,7 @@ void * threadHI(void * param)
 
 static void commWithSystems(void)
 {
+	int var;
 	pthread_t th;
 	char al[1024] = {0};
 	int i, newClient, server;
@@ -116,14 +117,20 @@ static void commWithSystems(void)
 		return;
 	}
 
+	FD_ZERO(&temp);
 	FD_ZERO(&sockets);
-	FD_SET(server, &sockets);
+	FD_SET(server, &temp);
 
 	pthread_create(&th, NULL, threadHI, al);
 	pthread_detach(th);
 
 	for(;;)
 	{
+		sockets.fd_count = temp.fd_count;
+		for (var = 0; var < temp.fd_count; ++var) {
+			sockets.fd_array[var] = temp.fd_array[var];
+		}
+
 		if (SOCKET_ERROR == select(0, &sockets, NULL, NULL, NULL))
 		{
 			CNF_ERROR("select");
@@ -143,7 +150,7 @@ static void commWithSystems(void)
 				}
 				else
 				{
-					FD_SET(newClient, &sockets);
+					FD_SET(newClient, &temp);
 				}
 			}
 		}
@@ -151,7 +158,7 @@ static void commWithSystems(void)
 		{
 			if ((selectedClient != newClient) || c)
 			{
-				FD_CLR(newClient, &sockets);
+				FD_CLR(newClient, &temp);
 				closesocket(newClient);
 			}
 		}
