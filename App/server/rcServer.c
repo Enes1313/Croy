@@ -7,7 +7,7 @@
 
 void * threadHI(void * param);
 static void commWithSystems(void);
-static int process(int sckt, char * al);
+static void process(int sckt, char * al);
 static void recvSendText(int sckt);
 
 int c = 1;
@@ -71,12 +71,7 @@ void * threadHI(void * param)
 			fgets(al, 300, stdin);
 			al[strlen(al) - 1] = 0;
 			senderText(selectedClient, al);
-
-			if (process(selectedClient, al))
-			{
-				closesocket(selectedClient);
-				FD_CLR(selectedClient, &temp);
-			}
+			process(selectedClient, al);
 			system("cls");
 		}
 	} while (1);
@@ -167,7 +162,7 @@ static void commWithSystems(void)
 	closesocket(server);
 }
 
-int process(int sckt, char * al)
+void process(int sckt, char * al)
 {
 	if (strncmp(al, "cmd", 3) == 0)
 	{
@@ -184,10 +179,7 @@ int process(int sckt, char * al)
 	else if (strncmp(al, "update ", 7) == 0)
 	{
 		senderFile(sckt, al + 7);
-		return 1;
 	}
-
-	return 0;
 }
 
 static void recvSendText(int sckt)
