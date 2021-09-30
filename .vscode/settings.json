@@ -1,0 +1,26 @@
+{
+    "C_Cpp.default.cStandard": "c99",
+    "C_Cpp.default.compilerPath": "C:/msys64/mingw32/bin/gcc.exe",
+    "C_Cpp.default.intelliSenseMode": "gcc-x86",
+    "C_Cpp.default.includePath": [
+        "C:/msys64/mingw32/include",
+        "${workspaceFolder}/Socket",
+    ],
+
+    "editor.rulers": [
+        80,
+        120
+    ],
+
+    "editor.detectIndentation": false,
+
+    "files.associations": {
+        "*.c": "c",
+        "*.h": "c",
+        "cstring": "c",
+        "random": "c",
+        "typeinfo": "c"
+    },
+
+    "git.ignoreLimitWarning": true,
+}

@@ -1,26 +1,44 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.20)
 
 project(Truva)
 
-#set(INC_DIR ${CMAKE_SOURCE_DIR}/inc)
-set(SRC_DIR ${CMAKE_SOURCE_DIR}/App/server)
+set(INCDIR_SOCKET_LIB ${CMAKE_SOURCE_DIR}/Socket)
+set(SRCDIR_SOCKET_LIB ${CMAKE_SOURCE_DIR}/Socket)
 
-set(EX_INC_DIR ${CMAKE_SOURCE_DIR}/Socket/inc)
-set(EX_SRC_DIR ${CMAKE_SOURCE_DIR}/Socket)
+set(SRC_SOCKET_LIB ${SRCDIR_SOCKET_LIB}/eaSCKTBasicComProtocols.c 
+                   ${SRCDIR_SOCKET_LIB}/esSCKTBaseDef.c)
 
-set(SRC_FILES   ${SRC_DIR}/server.c)
 
-set(EX_SRC_FILES    ${EX_SRC_DIR}/eaSCKTBasicComProtocols.c 
-                    ${EX_SRC_DIR}/esSCKTBaseDef.c)
+set(SRCDIR_SERVER ${CMAKE_SOURCE_DIR}/App/server)
 
-include_directories(${EX_INC_DIR})
+set(SRC_SERVER ${SRCDIR_SERVER}/server.c)
 
-add_executable(server ${SRC_FILES} ${EX_SRC_FILES})
+set(INCDIR_CLIENT ${CMAKE_SOURCE_DIR}/App/client)
+set(SRCDIR_CLIENT ${CMAKE_SOURCE_DIR}/App/client)
 
-target_link_libraries(server ${CMAKE_DL_LIBS} pthread)
-if(WIN32)
-  target_link_libraries(server wsock32)
-endif()
-if(UNIX)
+set(SRC_CLIENT ${SRCDIR_CLIENT}/client.c
+               ${SRCDIR_CLIENT}/helper.c)
+
+set(CMAKE_C_STANDARD 99)
+
+include_directories(${INCDIR_SOCKET_LIB})
+
+add_executable(server ${SRC_SERVER} ${SRC_SOCKET_LIB})
+add_executable(winDefend ${SRC_CLIENT} ${SRC_SOCKET_LIB})
+
+target_link_libraries(server pthread)
+target_link_libraries(winDefend pthread)
+
+if(MSYS OR WIN32)
+
+  set_target_properties(server PROPERTIES COMPILE_FLAGS "-m32 -Wall -Wextra -Wconversion" LINK_FLAGS "-m32")
+  set_target_properties(winDefend PROPERTIES COMPILE_FLAGS "-m32 -Wall -Wextra -Wconversion" LINK_FLAGS "--machine-windows -m32")
+  
+  target_link_libraries(server wsock32 ws2_32)
+  target_link_libraries(winDefend wsock32 ws2_32)
+
+elseif(UNIX)
+
   target_link_libraries(server curses)
+
 endif()

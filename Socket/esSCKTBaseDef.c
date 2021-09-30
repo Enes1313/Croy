@@ -3,33 +3,30 @@
 int eaSCKTInit(void)
 {
 #ifdef _WIN32
-    WSADATA wsa_data;
-    return WSAStartup(MAKEWORD(2, 0), &wsa_data);
+    return WSAStartup(MAKEWORD(2, 2), &(WSADATA){0});
 #else
     return 0;
 #endif
 }
 
-int eaSCKTFinish(void)
+void eaSCKTFinish(void)
 {
 #ifdef _WIN32
-    return WSACleanup();
-#else
-    return 0;
+    (void)WSACleanup();
 #endif
 }
 
-int eaSCKTClose(EAScktType sckt)
+void eaSCKTClose(EAScktType s)
 {
-    int status = 0;
-
 #ifdef _WIN32
-    status = shutdown(sckt, SD_BOTH);
-    if (status == 0) { status = closesocket(sckt); }
+    if (0 == shutdown(s, SD_BOTH))
+    {
+        (void)closesocket(s);
+    }
 #else
-    status = shutdown(sckt, SHUT_RDWR);
-    if (status == 0) { status = close(sckt); }
+    if (0 == shutdown(s, SHUT_RDWR))
+    {
+        (void)close(s);
+    }
 #endif
-
-    return status;
 }

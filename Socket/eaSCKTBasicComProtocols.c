@@ -4,184 +4,291 @@
 
 #include "eaSCKTBasicComProtocols.h"
 
-int recver(EAScktType s, char * bytes, unsigned char max_len)
+static bool recver(EAScktType s, char *buffer, unsigned char len)
 {
-	RecvSendRetType de;
-	unsigned char fe = 0, len;
+    RecvSendRetType de;
+    unsigned char rlen = 0U;
 
-	do {
-		de = recv(s, &len, 1, 0);
-		if (de == -1)
-			return de;
-	} while(0);
+    do 
+    {
+        unsigned char inBeingLen;
 
-	if (max_len < len)
-		return 0;
+        de = recv(s, (char *)&inBeingLen, 1, 0);
 
-	while (len > fe)
-	{
-		de = recv(s, bytes + fe, (RecvSendLenType) (len - fe), 0);
+        if (-1 == de)
+        {
+            return false;
+        }
 
-		if (de == -1)
-			return de;
-		fe = (unsigned char)de + fe;
-	}
+        if ((de > 0) && (len != inBeingLen))
+        {
+            return false;
+        }
+    } while (0 == de);
 
-	return fe;
+    while (len > rlen)
+    {
+        de = recv(s, &buffer[rlen], (RecvSendLenType)(len - rlen), 0);
+
+        if (-1 == de)
+        {
+            return false;
+        }
+
+        rlen = (unsigned char)((unsigned int)de + rlen);
+    }
+
+    return true;
 }
 
-int sender(EAScktType s, const char * bytes, unsigned char len)
+static bool sender(EAScktType s, const char *buffer, unsigned char len)
 {
-	RecvSendRetType de;
-	unsigned char fe = 0;
+    RecvSendRetType de;
+    unsigned char slen = 0U;
 
-	do {
-		de = send(s, (char *) &len, 1, 0);
-		if (de == -1)
-			return de;
-	} while(0);
+    do 
+    {
+        de = send(s, (char *)&len, 1, 0);
+        
+        if (-1 == de)
+        {
+            return false;
+        }
+    } while (0 == de);
 
-	while(len > fe)
-	{
-		de = send(s, bytes + fe, (RecvSendLenType) (len - fe), 0);
+    while (len > slen)
+    {
+        de = send(s, &buffer[slen], (RecvSendLenType)(len - slen), 0);
 
-		if(de == -1)
-			return de;
-		fe = (unsigned char)de + fe;
-	}
+        if (-1 == de)
+        {
+            return false;
+        }
 
-	return fe;
+        slen = (unsigned char)((unsigned int)de + slen);
+    }
+
+    return true;
 }
 
-char * recverText(EAScktType s)
+bool recverText(EAScktType s, char *text, unsigned int size)
 {
-	char * text;
-	char buffer[3] = { 0 };
-	int n = 0, total = 0, l = 0;
+    unsigned char buffer[2];
+    
+    if (false == recver(s, (char *)buffer, 2U))
+    {
+        return false;
+    }
 
-	if (recver(s, buffer, 2) <= 0)
-		return NULL;
+    unsigned int total = ((unsigned int)buffer[0] | 
+                          (unsigned int)(buffer[1] << 8));
 
-	total |= (buffer[0] | (buffer[1] << 8));
+    if (size < (total + 1U))
+    {
+        return false;
+    }
 
-	if ((text = (char *) calloc(total + 1, sizeof(char))) == NULL)
-		return NULL;
+    text[total] = '\0';
 
-	do {
-		if ((n = recver(s, text + l, ((total - l) >= 0xFF) ? 0xFF : (unsigned char)(total - l))) <= 0)
-			break;
-		l += n;
-	} while (l != total);
+    unsigned int sended = 0U;
 
-	return text;
+    do 
+    {
+        unsigned char len = ((total - sended) >= 0xFFU) ? 
+                            (unsigned char)0xFFU : 
+                            (unsigned char)(total - sended);
+
+        if (false == recver(s, &text[sended], len))
+        {
+            break;
+        }
+
+        sended += len;
+    } while (sended < total);
+
+    if (sended < total)
+    {
+        return false;
+    }
+
+    return true;
 }
 
-void senderText(EAScktType s, const char * text)
+bool senderText(EAScktType s, const char *text)
 {
-	char buffer[3] = { 0 };
-	int n = 0, total = 0, l = 0;
+    unsigned int total = (unsigned int) strlen(text);
 
-	total = (int) strlen(text);
-	buffer[0] = (char) (total & 0xFF);
-	buffer[1] = (char) (total >> 8);
+    unsigned char buffer[2] = {
+        (unsigned char)(total & 0xFFU),
+        (unsigned char)(total >> 8)
+    };
+    
+    if (false == sender(s, (char *)buffer, 2U))
+    {
+        return false;
+    }
 
-	if (sender(s, buffer, 2) <= 0)
-		return;
+    unsigned int sended = 0U;
 
-	do {
-		if ((n = sender(s, text + l, ((total - l) >= 0xFF) ? 0xFF : (unsigned char) (total - l))) <= 0)
-			break;
-		l += n;
-	} while (l != total);
+    do 
+    {
+        unsigned char len = ((total - sended) >= 0xFFU) ? 
+                            (unsigned char)0xFFU : 
+                            (unsigned char)(total - sended);
+
+        if (false == sender(s, &text[sended], len))
+        {
+            break;
+        }
+
+        sended += len;
+    } while (sended < total);
+
+    if (sended < total)
+    {
+        return false;
+    }
+
+    return true;
 }
 
-void senderFile(EAScktType s, const char * path)
+bool recverFile(EAScktType s)
 {
-	FILE * file;
-	int n, total = 0, l = 0;
-	char sendbuf[0x100] = {0}, buffer[5] = { 0 };
+    char name[260 + 1];
+    
+    if ((false == recverText(s, name, sizeof(name))) || 
+        !strcmp("_Error_", name))
+    {
+        return false;
+    }
 
-	if((file = fopen(path, "rb")) == NULL)
-	{
-		senderText(s, "_Error_");
-		return;
-	}
+    unsigned char buffer[4];
 
-	const char * e = path + strlen(path) - 2;
-	while ((e != (path - 1)) && (*e != '/' || *e != '\\'))
-		e--;
+    if (false == recver(s, (char *)buffer, 4U))
+    {
+        return false;
+    }
 
-	senderText(s, e + 1);
+    FILE *file = fopen(name, "wb");
 
-	fseek(file, 0, SEEK_END);
-	total = (int) ftell(file);
+    if (NULL == file)
+    {
+        return false;
+    }
 
-	buffer[0] = (char) (total & 0xFF);
-	buffer[1] = (char) ((total >> 8) & 0xFF);
-	buffer[2] = (char) ((total >> 16) & 0xFF);
-	buffer[3] = (char) ((total >> 24) & 0xFF);
+    char sendbuf[255];
+    unsigned int sended = 0;
+    unsigned int total = (unsigned int)buffer[0] | 
+                         ((unsigned int)buffer[1] << 8) | 
+                         ((unsigned int)buffer[2] << 16) | 
+                         ((unsigned int)buffer[3] << 24);
 
-	if(sender(s, buffer, 4) <= 0)
-		return;
+    do 
+    {
+        unsigned char len = ((total - sended) >= 0xFFU) ? 
+                            (unsigned char)0xFFU : 
+                            (unsigned char)(total - sended);
 
-	fseek(file, 0, SEEK_SET);
+        if (false == recver(s, sendbuf, len))
+        {
+            (void)fclose(file);
+            (void)remove(name);
 
-	while ((n = (int) fread(sendbuf, sizeof(char), ((total - l) >= 255) ? 255 : (unsigned char) (total - l), file)) > 0)
-	{
-		if (n != 255 && ferror(file))
-			break;
+            return false;
+        }
 
-		if (sender(s, sendbuf, (unsigned char) n) <= 0)
-			break;
-		l += n;
-		memset(sendbuf, 0, 255);
-	}
+        (void)fwrite(sendbuf, sizeof(char), len, file);
 
-	fclose(file);
+        sended += len;
+    } while (sended < total);
+
+    (void)fclose(file);
+
+    if (sended < total)
+    {
+        (void)remove(name);
+
+        return false;
+    }
+
+    return true;
 }
 
-char * recverFile(EAScktType s)
+bool senderFile(EAScktType s, const char *path)
 {
-	FILE * file;
-	char * path;
-	int n, total = 0;
-	char sendbuf[256] = {0}, buffer[5] = { 0 };
+    const char *name = path;
 
-	if ((path = recverText(s)) == NULL || strcmp("_Error_", path) == 0)
-		return NULL;
+    for (size_t idx = strlen(path); 0U != idx; idx--)
+    {
+        if ((path[idx - 1U] == '/') || (path[idx - 1U] == '\\'))
+        {
+            name = &path[idx];
 
-	if((file = fopen(path, "wb")) == NULL)
-		return NULL;
+            break;
+        }
+    }
 
-	if(recver(s, buffer, 4) <= 0)
-	{
-		fclose(file);
-		return NULL;
-	}
+    FILE *file = fopen(path, "rb");
 
-	total |= (buffer[0] | (buffer[1] << 8) | (buffer[2] << 15) | (buffer[3] << 24));
+    if (NULL == file)
+    {
+        senderText(s, "_Error_");
 
-	while (total)
-	{
-		if ((n = recver(s, sendbuf, 255)) <= 0)
-		{
-			fclose(file);
-			return NULL;
-		}
+        return false;
+    }
+    
+    (void)fseek(file, 0, SEEK_END);
 
-		n = (int) fwrite(sendbuf, sizeof(char), n, file);
+    unsigned int total = (unsigned int)ftell(file);
 
-		if (n != 255 && ferror(file))
-		{
-			fclose(file);
-			return NULL;
-		}
+    (void)fseek(file, 0, SEEK_SET);
 
-		total -= n;
-		memset(sendbuf, 0, 255);
-	}
+    unsigned char buffer[4] = {
+        (unsigned char)(total & 0xFFU),
+        (unsigned char)((total >> 8) & 0xFFU),
+        (unsigned char)((total >> 16) & 0xFFU),
+        (unsigned char)((total >> 24) & 0xFFU)
+    };
 
-	fclose(file);
+    if (false == senderText(s, name))
+    {
+        (void)fclose(file);
 
-	return path;
+        return false;
+    }
+
+    if (false == sender(s, (char *)buffer, 4U))
+    {
+        (void)fclose(file);
+
+        return false;
+    }
+
+    char sendbuf[255];
+    unsigned int sended = 0;
+
+    do 
+    {
+        unsigned char len = ((total - sended) >= 0xFFU) ? 
+                            (unsigned char)0xFFU : 
+                            (unsigned char)(total - sended);
+
+        (void)fread(sendbuf, sizeof(char), len, file);
+
+        if (false == sender(s, sendbuf, (unsigned char) len))
+        {
+            break;
+        }
+
+        sended += len;
+    } while (sended < total);
+
+    (void)fclose(file);
+
+    if (sended < total)
+    {
+        return false;
+    }
+
+    return true;
 }
