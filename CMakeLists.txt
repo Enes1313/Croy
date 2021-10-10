@@ -59,13 +59,11 @@ if(${USE_LOCAL} EQUAL 0)
 
 endif()
 
-add_compile_options(server "-m32 -Wall -Wextra -Wconversion")
+add_compile_options(server "-Wall -Wextra -Wconversion")
 
 ################################################################################
 
 message(STATUS "Linker configurations")
-
-add_link_options("-m32")
 
 target_link_libraries(server socketlib pthread)
 target_link_libraries(client socketlib pthread)
