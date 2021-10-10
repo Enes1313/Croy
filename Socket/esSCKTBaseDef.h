@@ -4,11 +4,15 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#ifndef NO_LOG
+#if OPEN_LOG == 1
+
 #include <stdio.h>
 #define LOG(f, ...) printf(f, ##__VA_ARGS__)
+
 #else
+
 #define LOG(f, ...)
+
 #endif
 
 #ifdef _WIN32
