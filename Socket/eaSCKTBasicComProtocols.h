@@ -1,16 +1,46 @@
 #ifndef SCKT_BASIC_COM_PROTOCOLS
 #define SCKT_BASIC_COM_PROTOCOLS
 
-#include <stdbool.h>
-
 #include "esSCKTBaseDef.h"
 
-bool recverText(EAScktType s, char *text, unsigned int len);
+/**
+ * @brief 
+ * 
+ * @param s 
+ * @param text 
+ * @param len 
+ * @return true 
+ * @return false 
+ */
+bool recverText(EASCKT s, char *text, unsigned int len);
 
-bool senderText(EAScktType s, const char *text);
+/**
+ * @brief 
+ * 
+ * @param s 
+ * @param text 
+ * @return true 
+ * @return false 
+ */
+bool senderText(EASCKT s, const char *text);
 
-bool recverFile(EAScktType s);
+/**
+ * @brief 
+ * 
+ * @param s 
+ * @return true 
+ * @return false 
+ */
+bool recverFile(EASCKT s);
 
-bool senderFile(EAScktType s, const char *path);
+/**
+ * @brief 
+ * 
+ * @param s 
+ * @param path 
+ * @return true 
+ * @return false 
+ */
+bool senderFile(EASCKT s, const char *path);
 
 #endif /* SCKT_BASIC_COM_PROTOCOLS  */

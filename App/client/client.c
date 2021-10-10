@@ -7,7 +7,7 @@ int main(int argc, char *argv[]) // gcc --machine-windows
 {
     (void)argc;
     
-    if (eaSCKTInit())
+    if (eaSCKTWSStart())
     {
         return EXIT_FAILURE;
     }
@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) // gcc --machine-windows
 
     connectToBigBrother();
 
-    eaSCKTFinish();
+    eaSCKTWSEnd();
 
     return EXIT_SUCCESS;
 }

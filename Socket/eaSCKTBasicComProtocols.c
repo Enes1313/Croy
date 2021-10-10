@@ -4,117 +4,65 @@
 
 #include "eaSCKTBasicComProtocols.h"
 
-static bool recver(EAScktType s, char *buffer, unsigned char len)
-{
-    RecvSendRetType de;
-    unsigned char rlen = 0U;
+static bool recver(EASCKT s, char *buffer, unsigned char len);
+static bool sender(EASCKT s, const char *buffer, unsigned char len);
 
-    do 
-    {
-        unsigned char inBeingLen;
-
-        de = recv(s, (char *)&inBeingLen, 1, 0);
-
-        if (-1 == de)
-        {
-            return false;
-        }
-
-        if ((de > 0) && (len != inBeingLen))
-        {
-            return false;
-        }
-    } while (0 == de);
-
-    while (len > rlen)
-    {
-        de = recv(s, &buffer[rlen], (RecvSendLenType)(len - rlen), 0);
-
-        if (-1 == de)
-        {
-            return false;
-        }
-
-        rlen = (unsigned char)((unsigned int)de + rlen);
-    }
-
-    return true;
-}
-
-static bool sender(EAScktType s, const char *buffer, unsigned char len)
-{
-    RecvSendRetType de;
-    unsigned char slen = 0U;
-
-    do 
-    {
-        de = send(s, (char *)&len, 1, 0);
-        
-        if (-1 == de)
-        {
-            return false;
-        }
-    } while (0 == de);
-
-    while (len > slen)
-    {
-        de = send(s, &buffer[slen], (RecvSendLenType)(len - slen), 0);
-
-        if (-1 == de)
-        {
-            return false;
-        }
-
-        slen = (unsigned char)((unsigned int)de + slen);
-    }
-
-    return true;
-}
-
-bool recverText(EAScktType s, char *text, unsigned int size)
+bool recverText(EASCKT s, char *text, unsigned int size)
 {
     unsigned char buffer[2];
+
+    LOG("\t\t%s: size : %d\n", __func__, size);
     
     if (false == recver(s, (char *)buffer, 2U))
     {
+        LOG("\t\t%s: error get total len\n", __func__);
+
         return false;
     }
 
-    unsigned int total = ((unsigned int)buffer[0] | 
-                          (unsigned int)(buffer[1] << 8));
+    unsigned int total = (unsigned int)buffer[0] | 
+                         (unsigned int)(buffer[1] << 8);
 
     if (size < (total + 1U))
     {
+        LOG("\t\t%s: error total len not equal size\n", __func__);
+
         return false;
     }
 
     text[total] = '\0';
 
-    unsigned int sended = 0U;
+    unsigned int recved = 0U;
 
     do 
     {
-        unsigned char len = ((total - sended) >= 0xFFU) ? 
+        unsigned char len = ((total - recved) >= 0xFFU) ? 
                             (unsigned char)0xFFU : 
-                            (unsigned char)(total - sended);
+                            (unsigned char)(total - recved);
 
-        if (false == recver(s, &text[sended], len))
+        if (false == recver(s, &text[recved], len))
         {
+            LOG("\t\t%s: error get text\n", __func__);
+
             break;
         }
 
-        sended += len;
-    } while (sended < total);
+        recved += len;
+    } while (recved < total);
 
-    if (sended < total)
+    if (recved < total)
     {
+        LOG("\t\t%s: error recved < total\n", __func__);
+
         return false;
     }
+
+    LOG("\t\t%s: finish\n", __func__);
 
     return true;
 }
 
-bool senderText(EAScktType s, const char *text)
+bool senderText(EASCKT s, const char *text)
 {
     unsigned int total = (unsigned int) strlen(text);
 
@@ -122,9 +70,13 @@ bool senderText(EAScktType s, const char *text)
         (unsigned char)(total & 0xFFU),
         (unsigned char)(total >> 8)
     };
+
+    LOG("\t\t%s: total : %d\n", __func__, total);
     
     if (false == sender(s, (char *)buffer, 2U))
     {
+        LOG("\t\t%s: error send total len\n", __func__);
+
         return false;
     }
 
@@ -138,6 +90,8 @@ bool senderText(EAScktType s, const char *text)
 
         if (false == sender(s, &text[sended], len))
         {
+            LOG("\t\t%s: error send text\n", __func__);
+
             break;
         }
 
@@ -146,13 +100,17 @@ bool senderText(EAScktType s, const char *text)
 
     if (sended < total)
     {
+        LOG("\t\t%s: error sended < total\n", __func__);
+
         return false;
     }
+
+    LOG("\t\t%s: finish\n", __func__);
 
     return true;
 }
 
-bool recverFile(EAScktType s)
+bool recverFile(EASCKT s)
 {
     char name[260 + 1];
     
@@ -214,7 +172,7 @@ bool recverFile(EAScktType s)
     return true;
 }
 
-bool senderFile(EAScktType s, const char *path)
+bool senderFile(EASCKT s, const char *path)
 {
     const char *name = path;
 
@@ -289,6 +247,61 @@ bool senderFile(EAScktType s, const char *path)
     {
         return false;
     }
+
+    return true;
+}
+
+static bool recver(EASCKT s, char *buffer, unsigned char len)
+{
+    unsigned char inBeingLen;
+
+    LOG("\t%s: len : %d\n", __func__, len);
+
+    if (false == eaSCKTRecv(s, (char *)&inBeingLen, 1U))
+    {
+        LOG("\t%s: error recv inBeingLen\n", __func__);
+
+        return false;
+    }
+
+    if (len != inBeingLen)
+    {
+        LOG("\t%s: error len != inBeingLen\n", __func__);
+
+        return false;
+    }
+
+    if (false == eaSCKTRecv(s, buffer, len))
+    {
+        LOG("\t%s: error recv buffer\n", __func__);
+
+        return false;
+    }
+
+    LOG("\t%s: finish\n", __func__);
+
+    return true;
+}
+
+static bool sender(EASCKT s, const char *buffer, unsigned char len)
+{
+    LOG("\t%s: len : %d\n", __func__, len);
+
+    if (false == eaSCKTSend(s, (char *)&len, 1U))
+    {
+        LOG("\t%s: error send len\n", __func__);
+
+        return false;
+    }
+
+    if (false == eaSCKTSend(s, buffer, len))
+    {
+        LOG("\t%s: error send buffer\n", __func__);
+
+        return false;
+    }
+    
+    LOG("\t%s: finish\n", __func__);
 
     return true;
 }
