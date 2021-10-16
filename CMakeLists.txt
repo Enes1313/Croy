@@ -64,7 +64,9 @@ if(${USE_LOCAL} EQUAL 0)
 
 endif()
 
-add_compile_options(server "-Wall -Wextra -Wconversion")
+target_compile_options(client PUBLIC -Wall -Wextra -Wconversion -pedantic)
+target_compile_options(server PUBLIC -Wall -Wextra -Wconversion -pedantic)
+target_compile_options(socketlib PUBLIC -Wall -Wextra -Wconversion -pedantic)
 
 ################################################################################
 
@@ -72,6 +74,8 @@ message(STATUS "Linker configurations")
 
 target_link_libraries(server socketlib pthread)
 target_link_libraries(client socketlib pthread)
+
+target_link_options(client PUBLIC -s)
 
 if(MSYS OR WIN32)
 
@@ -81,7 +85,7 @@ if(MSYS OR WIN32)
   target_link_libraries(client wsock32 ws2_32)
 
   if(${OPEN_LOG} EQUAL 0)
-    target_link_options(client PUBLIC "--machine-windows")
+    target_link_options(client PUBLIC --machine-windows)
   endif()
   
 else()
