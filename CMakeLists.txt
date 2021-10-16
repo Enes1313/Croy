@@ -51,8 +51,8 @@ message(STATUS "Compile configurations")
 
 add_compile_definitions(OPEN_LOG=${OPEN_LOG})
 target_compile_definitions(client PUBLIC USE_PROXY=${USE_PROXY}
-                                         MAIN_FOLDER=${MAIN_FOLDER}
-                                         PROGRAM_NAME=${PROGRAM_NAME})
+                                         MAIN_FOLDER="${MAIN_FOLDER}"
+                                         PROGRAM_NAME="${PROGRAM_NAME}")
 
 if(${USE_LOCAL} EQUAL 0)
 
