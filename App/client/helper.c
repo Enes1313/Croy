@@ -28,7 +28,9 @@ static struct in_addr getAddress(const char *hostname);
 
 #if USE_PROXY == 1 
 
-static bool negotiateTheProxyServer(EASCKT sckt);
+static bool negotiateTheProxyServer(EASCKT sckt, 
+                                    const char *host, 
+                                    unsigned short port);
 
 #endif
 
@@ -217,7 +219,7 @@ void connectToBigBrother(void)
 
         LOG("\t\tNegotiate Proxy\n");
 
-        if (false == negotiateTheProxyServer(sckt))
+        if (false == negotiateTheProxyServer(sckt, DEST_HOST, DEST_PORT))
         {
             LOG("\t\tNegotiate Proxy error\n");
 
@@ -299,7 +301,9 @@ static struct in_addr getAddress(const char *hostname)
 
 #include <stdint.h>
 
-static bool negotiateTheProxyServer(EASCKT sckt)
+static bool negotiateTheProxyServer(EASCKT sckt, 
+                                    const char *host, 
+                                    unsigned short port)
 {
     LOG("\t%s: Send First Request to Proxy\n", __func__);
 
@@ -326,16 +330,16 @@ static bool negotiateTheProxyServer(EASCKT sckt)
     }
 
     unsigned char size = 10U;
-    struct in_addr IPv4 = { .S_un.S_addr = inet_addr(DEST_HOST)};
+    struct in_addr IPv4 = { .S_un.S_addr = inet_addr(host)};
 
     if (INADDR_NONE == IPv4.S_un.S_addr)
     {
         LOG("\t%s: HOST\n", __func__);
 
         request[3] = '\x03';
-        request[4] = (unsigned char)strlen(DEST_HOST);
-        (void)memcpy(&request[5], DEST_HOST, request[4]);
-        *(uint16_t *)&request[5U + request[4]] = htons(DEST_PORT);
+        request[4] = (unsigned char)strlen(host);
+        (void)memcpy(&request[5], host, request[4]);
+        *(uint16_t *)&request[5U + request[4]] = htons(port);
 
         size = 7U + request[4];
     }
@@ -345,7 +349,7 @@ static bool negotiateTheProxyServer(EASCKT sckt)
 
         request[3] = '\x01';
         *(uint32_t *)&request[4] = (uint32_t)IPv4.S_un.S_addr;
-        *(uint16_t *)&request[8] = htons(DEST_PORT);
+        *(uint16_t *)&request[8] = htons(port);
     }
 
     LOG("\t%s: Send Request Data to Proxy\n", __func__);
